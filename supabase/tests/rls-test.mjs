@@ -1,6 +1,10 @@
 /* ══════════════════════════════════════════
-   rls-test.mjs — בדיקת RLS מעשית (שלב 1: profiles / day_logs / favorites / events)
+   rls-test.mjs — בדיקת RLS מעשית
+   (שלב 1: profiles / day_logs / favorites / weight_logs / events)
    רץ לפני כל מיגרציה חדשה. שלב הבא יוסיף: מאמן מול day_summaries + revoke.
+
+   ⚠️ מיגרציה חדשה = בלוק בדיקה חדש כאן, באותו commit. weight_logs (003) חמקה
+   מזה וישבה ללא כיסוי עד 29/07/2026, ודווקא היא הטבלה הרגישה ביותר.
 
    הרצה (המפתחות לא נשמרים בשום קובץ — משתני סביבה בלבד):
      SUPABASE_URL=https://xxx.supabase.co \
@@ -100,6 +104,57 @@ try {
   const { data: af } = await a.client.from('favorites').select('fav_id').eq('trainee_id', a.id);
   check("מתאמן א' מוחק מועדף שלו", !f4 && (af || []).length === 0, f4?.message);
 
+  // ── 2ג. weight_logs: עצמי עובד, של אחר חסום, ורצפות השפיות של ה-DB ──
+  // הטבלה הכי רגישה שיש (היסטוריית משקל = מידע בריאותי, תיקון 13) והיא נוספה
+  // במיגרציה 003 אחרי שהקובץ הזה נכתב, כלומר ה-RLS שלה מעולם לא נבדק בפועל.
+  const nowIso = () => new Date().toISOString();
+  const { error: k1 } = await a.client.from('weight_logs').upsert({
+    trainee_id: a.id, date: today, weight_kg: 80.5, client_updated_at: nowIso(),
+  });
+  check("מתאמן א' כותב שקילה לעצמו", !k1, k1?.message);
+  const { error: k2 } = await a.client.from('weight_logs').upsert({
+    trainee_id: a.id, date: today, weight_kg: 80.1, client_updated_at: nowIso(),
+  });
+  check("מתאמן א' מעדכן שקילה קיימת (upsert לפי תאריך)", !k2, k2?.message);
+
+  // שקילה ל-ב' — גם כהכנה לבדיקת ה-cascade בסעיף 5
+  const { error: k3 } = await b.client.from('weight_logs').upsert({
+    trainee_id: b.id, date: today, weight_kg: 62.0, client_updated_at: nowIso(),
+  });
+  check("מתאמן ב' כותב שקילה לעצמו", !k3, k3?.message);
+
+  const { data: bw } = await b.client.from('weight_logs').select('*').eq('trainee_id', a.id);
+  check("מתאמן ב' לא קורא שקילות של א' (0 שורות)", (bw || []).length === 0);
+  const { error: k4 } = await b.client.from('weight_logs').upsert({
+    trainee_id: a.id, date: today, weight_kg: 99.9, client_updated_at: nowIso(),
+  });
+  check("מתאמן ב' לא כותב שקילה בשם א'", !!k4);
+  // update על שורה לא-נגישה מסונן ע"י RLS (0 שורות) — מוודאים שהערך לא זז בפועל
+  await b.client.from('weight_logs').update({ weight_kg: 1.0 }).eq('trainee_id', a.id);
+  const { data: aw } = await a.client.from('weight_logs')
+    .select('weight_kg').eq('trainee_id', a.id).eq('date', today).single();
+  check("המשקל של א' לא השתנה מניסיון עדכון של ב'", Number(aw.weight_kg) === 80.1);
+  await b.client.from('weight_logs').delete().eq('trainee_id', a.id);
+  const { data: aw2 } = await a.client.from('weight_logs').select('date').eq('trainee_id', a.id);
+  check("מתאמן ב' לא מוחק שקילות של א'", (aw2 || []).length === 1);
+
+  // check ברמת DB: 20–400 ק"ג (רחב מה-clamp בלקוח 30–300)
+  const { error: k5 } = await a.client.from('weight_logs').upsert({
+    trainee_id: a.id, date: '2026-01-02', weight_kg: 500, client_updated_at: nowIso(),
+  });
+  check('שקילה מחוץ לטווח (500 ק"ג) נדחית ברמת ה-DB', !!k5);
+  // trigger check_weight_date — זהה ל-day_logs
+  const farW = new Date(Date.now() + 5 * 864e5).toLocaleDateString('en-CA');
+  const { error: k6 } = await a.client.from('weight_logs').upsert({
+    trainee_id: a.id, date: farW, weight_kg: 80, client_updated_at: nowIso(),
+  });
+  check('שקילה עם תאריך עתידי (+5 ימים) נדחית', !!k6);
+
+  const { error: k7 } = await a.client.from('weight_logs')
+    .delete().eq('trainee_id', a.id).eq('date', today);
+  const { data: aw3 } = await a.client.from('weight_logs').select('date').eq('trainee_id', a.id);
+  check("מתאמן א' מוחק שקילה שלו", !k7 && (aw3 || []).length === 0, k7?.message);
+
   // ── 3. events: כתיבה פתוחה, קריאה חסומה ──
   const anon = createClient(URL, ANON, { auth: { persistSession: false } });
   const { error: ee } = await anon.from('events').insert({
@@ -130,6 +185,8 @@ try {
   check('delete_my_account רץ למשתמש מחובר', !da, da?.message);
   const { data: gone } = await admin.from('profiles').select('id').eq('id', b.id);
   check('ה-cascade מחק את ה-profile', (gone || []).length === 0);
+  const { data: goneW } = await admin.from('weight_logs').select('date').eq('trainee_id', b.id);
+  check('ה-cascade מחק גם את ה-weight_logs', (goneW || []).length === 0);
   b = null;   // כבר נמחק
 } catch (e) {
   console.error('✗ שגיאה קשה:', e.message);
