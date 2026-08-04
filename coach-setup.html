@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<!-- הקמת גרסה ממותגת למאמן/ת (onboarding, שלב 0.5).
+     טופס Web3Forms (ללא שרת) → אלכס מוסיף רשומה ל-coaches.json + דף הפניה ב-c/<slug>/ ודוחף.
+     הצ'קבוקס כאן הוא "האישור בכתב" של חמשת הסעיפים (במקום סיכום במייל/וואטסאפ).
+     noindex — זה עמוד תפעולי שמגיעים אליו בלינק ישיר, לא נכס שיווקי. -->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>הקמת הגרסה הממותגת שלך | ShapEat</title>
+<link rel="icon" type="image/png" href="/brand/AVATAR-shapeat.png">
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#4f46e5; --accent2:#7c3aed;
+    --text:#1e2235; --text-sec:#52576b; --text-tert:#6c7184;
+    --border:#e6e8f0; --card:#fff; --radius:18px;
+    --shadow:0 6px 24px rgba(40,46,90,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Heebo','Segoe UI',system-ui,sans-serif;color:var(--text);
+    background:linear-gradient(135deg,#f0f2f8,#e8ecf7) fixed;line-height:1.55}
+  .wrap{max-width:560px;margin:0 auto;padding:24px 16px 60px}
+  a{color:var(--accent);font-weight:700}
+
+  .logo{font-size:22px;font-weight:900;letter-spacing:-.5px;text-align:center;
+    margin-bottom:26px;text-decoration:none;display:block;color:var(--text)}
+  .logo .eat{color:var(--accent)}
+
+  h1{font-size:27px;font-weight:900;letter-spacing:-.7px;line-height:1.2;margin-bottom:10px}
+  .sub{font-size:15.5px;color:var(--text-sec);margin-bottom:22px}
+
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 20px}
+
+  .fld{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:12px;
+    font-size:15.5px;font-family:inherit;background:#fbfbfe;margin-bottom:12px;color:var(--text)}
+  .fld:focus{outline:none;border-color:var(--accent);background:#fff}
+  .lbl{display:block;font-size:13.5px;font-weight:700;color:var(--text-sec);margin:0 2px 6px}
+  .hint{font-size:12.5px;color:var(--text-tert);margin:-6px 2px 14px}
+
+  /* כתובת = URL, ולכן השורה כולה LTR: הקידומת משמאל והשדה מימינה, כמו שקוראים כתובת */
+  .slug-row{display:flex;align-items:center;gap:7px;margin-bottom:6px;direction:ltr}
+  .slug-row .pre{font-size:14px;color:var(--text-tert);white-space:nowrap;flex-shrink:0}
+  .slug-row .fld{margin-bottom:0;text-align:left;min-width:0}
+
+  .color-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .color-row input[type=color]{width:52px;height:42px;border:1.5px solid var(--border);
+    border-radius:12px;background:#fff;padding:3px;cursor:pointer;flex-shrink:0}
+  .color-row span{font-size:13.5px;color:var(--text-tert)}
+
+  .ack{display:flex;align-items:flex-start;gap:10px;background:#f7f8fd;border:1px solid var(--border);
+    border-radius:14px;padding:14px 15px;margin:6px 0 16px;cursor:pointer}
+  .ack input{margin-top:3px;width:19px;height:19px;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
+  .ack-txt{font-size:13.5px;color:var(--text-sec);line-height:1.6}
+  .ack-txt b{color:var(--text)}
+  .ack-txt ul{margin:7px 0 0;padding-inline-start:18px}
+  .ack-txt li{margin-bottom:4px}
+
+  .btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;
+    font-family:inherit;font-weight:800;font-size:16.5px;padding:15px;border-radius:999px;cursor:pointer;
+    box-shadow:0 8px 22px rgba(79,70,229,.32);transition:transform .15s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn:disabled{opacity:.6;cursor:default;transform:none}
+
+  .foot{font-size:12.5px;color:var(--text-tert);text-align:center;margin-top:14px}
+
+  .ok{display:none;text-align:center;padding:14px 4px}
+  .ok .big{font-size:42px;margin-bottom:10px}
+  .ok h2{font-size:21px;font-weight:900;margin-bottom:8px}
+  .ok p{font-size:15px;color:var(--text-sec)}
+  .err{display:none;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:12px;
+    padding:11px 14px;font-size:14px;margin-bottom:12px}
+
+  @media(max-width:420px){ h1{font-size:24px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="logo" href="/">Shap<span class="eat">Eat</span></a>
+
+  <h1>הגרסה הממותגת שלך</h1>
+  <p class="sub">
+    ממלאים כאן, ואני מקים לך לינק אישי עם השם והצבע שלך על האפליקציה.
+    המתאמנים שלך פותחים אותו ומקבלים תפריט יומי, בחינם. ההקמה לוקחת לי פחות משעה.
+  </p>
+
+  <div class="card">
+
+    <div class="err" id="err">משהו השתבש בשליחה. אפשר לנסות שוב, או פשוט לענות לי בהודעה.</div>
+
+    <form id="setup-form" autocomplete="on">
+      <input type="hidden" name="access_key" value="551d8138-f046-4062-a9da-fcbb98cbf9a2">
+      <input type="hidden" name="subject" value="הקמת מאמן חדש — ShapEat">
+      <input type="hidden" name="from_name" value="ShapEat onboarding">
+      <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none !important">
+
+      <label class="lbl" for="f-name">השם שיופיע באפליקציה *</label>
+      <input class="fld" id="f-name" type="text" name="Brand Name" maxlength="40" required
+             placeholder="למשל: דני כהן" aria-label="השם שיופיע באפליקציה">
+
+      <label class="lbl" for="f-tag">שורת תיאור קצרה</label>
+      <input class="fld" id="f-tag" type="text" name="Tagline" maxlength="80"
+             placeholder="למשל: מאמן כוח · אונליין" aria-label="שורת תיאור קצרה">
+      <div class="hint">מופיעה מתחת לשם. אפשר להשאיר ריק.</div>
+
+      <label class="lbl" for="f-slug">הכתובת האישית שלך *</label>
+      <div class="slug-row">
+        <span class="pre">shapeat.co.il/c/</span>
+        <input class="fld" id="f-slug" type="text" name="Slug" required
+               pattern="[a-z0-9][a-z0-9\-]{1,30}[a-z0-9]" maxlength="32"
+               placeholder="danny" aria-label="הכתובת האישית שלך">
+      </div>
+      <div class="hint">אותיות באנגלית, ספרות ומקפים בלבד.</div>
+
+      <label class="lbl" for="f-mail">מייל *</label>
+      <input class="fld" id="f-mail" type="email" name="email" required
+             placeholder="לעדכון כשהלינק מוכן" aria-label="כתובת מייל">
+
+      <label class="lbl">צבע המותג</label>
+      <div class="color-row">
+        <input type="color" id="f-color" name="Brand Color" value="#4f46e5" aria-label="צבע המותג">
+        <span>אם אין לך צבע מוגדר, אפשר להשאיר. יש לוגו? שלח/י לי אותו בהודעה ואשבץ.</span>
+      </div>
+
+      <label class="ack">
+        <input type="checkbox" name="Acknowledgment" value="Confirmed: tool access only, auto-calculated sample menu, disclaimer stays, trainee consent, own marketing. Privacy + terms read." required>
+        <span class="ack-txt">
+          <b>אני מאשר/ת:</b>
+          <ul>
+            <li>אני נותן/ת למתאמנים <b>גישה לכלי</b>. איני בונה את התפריט ואיני נותן/ת ייעוץ תזונתי.</li>
+            <li>התפריט הוא <b>תפריט לדוגמה המחושב אוטומטית</b> לאדם בריא.</li>
+            <li>הצהרת הכניסה באפליקציה נשארת, ולא ניתן להסירה.</li>
+            <li>אציג למתאמן/ת שאראה נתוני התמדה, ורק בהסכמתו/ה.</li>
+            <li>אני אחראי/ת לאופן השיווק שלי, ללא הבטחות תוצאה או טענות רפואיות.</li>
+            <li>קראתי את <a href="privacy.html" target="_blank" rel="noopener">מדיניות הפרטיות</a> ו<a href="terms.html" target="_blank" rel="noopener">תנאי השימוש</a>.</li>
+          </ul>
+        </span>
+      </label>
+
+      <button class="btn" type="submit" id="btn">שלחו לי את הלינק</button>
+      <div class="foot">הפרטים משמשים להקמת הלינק וליצירת קשר בלבד.</div>
+    </form>
+
+    <div class="ok" id="ok">
+      <div class="big">🎉</div>
+      <h2>קיבלתי</h2>
+      <p>אני מקים את הלינק ומעדכן אותך במייל. בדרך כלל תוך כמה שעות.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('setup-form'),
+      btn  = document.getElementById('btn'),
+      err  = document.getElementById('err'),
+      ok   = document.getElementById('ok'),
+      slug = document.getElementById('f-slug');
+
+  // הקלדה בכתובת: מנרמלים לאותיות קטנות ותווים חוקיים בלבד (אותו כלל כמו coach-theme.js)
+  slug.addEventListener('input', function () {
+    var v = slug.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (v !== slug.value) slug.value = v;
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    err.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'שולח...';
+
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      body: new FormData(form)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || d.success !== true) throw new Error('form');
+        form.style.display = 'none';
+        ok.style.display = 'block';
+      })
+      .catch(function () {
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'שלחו לי את הלינק';
+      });
+  });
+})();
+</script>
+</body>
+</html>
