@@ -95,6 +95,10 @@
       <input type="hidden" name="subject" value="הקמת מאמן חדש — ShapEat">
       <input type="hidden" name="from_name" value="ShapEat onboarding">
       <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none !important">
+      <!-- תיעוד ההסכמה: הטקסט המדויק שהוצג נשלח כמו שהוא (נקרא מה-DOM ב-submit),
+           כדי שהרשומה לא תוכל לסטות מהעמוד. הגרסה מזהה על מה בדיוק נחתם. -->
+      <input type="hidden" name="Terms Version" value="coach-terms-2026-08-04">
+      <input type="hidden" name="Acknowledged Text" id="ack-text">
 
       <label class="lbl" for="f-name">השם שיופיע באפליקציה *</label>
       <input class="fld" id="f-name" type="text" name="Brand Name" maxlength="40" required
@@ -125,7 +129,7 @@
       </div>
 
       <label class="ack">
-        <input type="checkbox" name="Acknowledgment" value="Confirmed: tool access only, auto-calculated sample menu, disclaimer stays, trainee consent, own marketing. Privacy + terms read." required>
+        <input type="checkbox" name="Acknowledgment" value="V" required>
         <span class="ack-txt">
           <b>אני מאשר/ת:</b>
           <ul>
@@ -168,6 +172,13 @@
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+
+    // תיעוד ההסכמה: מעתיקים את הסעיפים מה-DOM עצמו, כך שמה שנרשם הוא
+    // בדיוק מה שהוצג על המסך — גם אם הנוסח בעמוד ישתנה בעתיד.
+    var ackEl = document.querySelector('.ack-txt');
+    document.getElementById('ack-text').value =
+      ackEl ? ackEl.innerText.replace(/[ \t]+/g, ' ').trim() : '';
+
     err.style.display = 'none';
     btn.disabled = true;
     btn.textContent = 'שולח...';
