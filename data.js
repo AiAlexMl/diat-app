@@ -152,10 +152,16 @@ const MEAL_TIMES = {
     { label:'ארוחת אחה"צ',  icon:'coffee',     time:'17:30', pct:.18, tag:null,   type:'snack',     big:false },
     { label:'ארוחת ערב',    icon:'moon',       time:'22:00', pct:.27, tag:null,   type:'dinner',    big:false },
   ],
+  // אימון בוקר היה הלוח היחיד עם 3 ארוחות, ואיתו הפער הארוך ביותר ביום (13:00→20:00, שבע שעות)
+  // בזמן שביום ללא אימון דווקא יש נשנוש ב-17:30. התוצאה: הצלחת הגדולה נשאה ~39-41% מהיום
+  // ביעדים מתחת ל-2,100 (מעליהם mealPlan מוסיף נשנושים בעצמו, אז שם זה לא הורגש).
+  // נמדד (600 תפריטים לכל וריאנט): הצלחת הגדולה 40.8%→34.1% בחיטוב ו-38.9%→33.5% בשמירה,
+  // דיוק קלוריות וחלבון ללא שינוי, והארוחה הקטנה נשארת ארוחה אמיתית גם ביעד הנמוך ביותר (~172 קק"ל).
   morning: [
-    { label:'אחרי אימון',   icon:'bolt',       time:'07:30', pct:.32, tag:'post', type:'breakfast', big:true  },
-    { label:'ארוחת צהריים', icon:'sun-high',   time:'13:00', pct:.28, tag:null,   type:'hot',       big:true  },
-    { label:'ארוחת ערב',    icon:'moon',       time:'20:00', pct:.40, tag:null,   type:'dinner',    big:false },
+    { label:'אחרי אימון',   icon:'bolt',       time:'07:30', pct:.30, tag:'post', type:'breakfast', big:true  },
+    { label:'ארוחת צהריים', icon:'sun-high',   time:'13:00', pct:.25, tag:null,   type:'hot',       big:true  },
+    { label:'ארוחת אחה"צ',  icon:'coffee',     time:'16:30', pct:.13, tag:null,   type:'snack',     big:false },
+    { label:'ארוחת ערב',    icon:'moon',       time:'20:00', pct:.32, tag:null,   type:'dinner',    big:false },
   ],
   noon: [
     { label:'ארוחת בוקר',   icon:'sun',        time:'08:00', pct:.20, tag:null,   type:'breakfast', big:false },
