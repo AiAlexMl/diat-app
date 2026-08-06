@@ -361,6 +361,23 @@ function tasteProfile(f) {
   if (SAVORY_TAGS.some(t => f.tags.includes(t))) return 'savory';
   return 'neutral';   // חלב, לחם, פריכיות, אגוזים, תוספים, פרי
 }
+// ── עוגן חלבון: המנה שנתפסת כמקור החלבון של הארוחה ─────────────────────────
+// ממרח/משקה/רוטב אינם עוגן (חומוס בצד, חלב לקורנפלקס), ולכן מסוננים.
+// משמש כדי לא להזריק מנת חלבון שנייה לארוחה שכבר יש בה אחת — כך נמנעות
+// ארוחות כמו "יוגורט יווני + טונה" או "גבינה לבנה + סייטן" (2.6% מהתפריטים לפני).
+function proteinAnchor(f) {
+  if (!f || f.dip || f.condiment || f.drink) return null;
+  if (f.tags.includes('egg')) return 'egg';
+  if (f.tags.includes('tuna')) return 'tuna';
+  if (f.tags.includes('fish')) return 'fish';
+  if (f.tags.includes('meat')) return 'meat';
+  if (f.tags.includes('supplement')) return 'supplement';
+  if (f.tags.includes('legume')) return 'legume';
+  if (f.tags.includes('dairy') && f.p >= 5) return 'dairy';   // קוטג'/יוגורט/גבינה — לא חלב שתייה
+  return null;
+}
+const hasProteinAnchor = m => !!(m && m.items && m.items.some(it => proteinAnchor(it.f)));
+
 // האם מותר להוסיף את f לארוחה m? מתוק ומלוח לא נפגשים; ניטרלי עובר תמיד.
 function tasteOk(f, m) {
   const p = tasteProfile(f);
@@ -883,7 +900,7 @@ function reconcile(meals, used, ctx) {
           // tasteOk: לא מזריקים מלוח לארוחה מתוקה ולהפך. אם לאף ארוחה f לא מתאים —
           // עוברים למועמד הבא, ואם אף מועמד לא נכנס פשוט לא מזריקים. חלבון חסר
           // מדווח בכנות ב-S.menuWarning; ארוחה לא-קוהרנטית נראית לעין ואין לה תירוץ.
-          const tm = targets.find(m => tasteOk(f, m) &&
+          const tm = targets.find(m => tasteOk(f, m) && !hasProteinAnchor(m) &&
             kosherOk(f, new Set(m.items.flatMap(x => x.f ? x.f.tags : []))) &&
             !(m.noDairy && isDairyKosher(f)));
           if (!tm) continue;
