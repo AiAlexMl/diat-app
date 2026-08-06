@@ -340,6 +340,35 @@ const _sliced  = f => f.tags.includes('bread') && !f.pita; // לחם/פריכי�
 const hasAnimalProtein = () => ALL.some(f =>
   (f.tags.includes('egg') || f.tags.includes('meat') || f.tags.includes('fish') || f.tags.includes('dairy')) && allowed(f));
 
+// ── פרופיל טעם: מתוק / מלוח / ניטרלי ────────────────────────────────────────
+// התבניות בונות ארוחות קוהרנטיות, אבל פריטים שמוזרקים *אחרי* התבנית (שלב 1ב,
+// עוגן חלבון, top-up) עקפו אותן לגמרי — כך יצאה דייסה עם דבש ואגס + טונה,
+// וקורנפלקס בחלב + סייטן. הציר הזה הוא הבדיקה הזוגית היחידה מלבד kosherOk.
+//
+// הציר משולש בכוונה ולא בינארי: בינארי היה חוסם קוטג' עם פרי (תבנית dairy_fruit)
+// ולחם עם פרי (bread_spread) — שילובים קיימים ומקובלים. פרי הוא ניטרלי, כי פרי
+// בצד ארוחה מלוחה סביר לגמרי; לכן קבוצת ה"מתוק" קטנה, והכלל יורה רק על ארוחות
+// שבנויות סביב דייסה/גרנולה/קורנפלקס — בדיוק שם שההזרקה הייתה שגויה.
+const SWEET_TAGS  = ['sweet_topping', 'granola', 'cereal'];
+const SAVORY_TAGS = ['meat', 'fish', 'tuna', 'veg', 'hot_veg', 'salad', 'salad_only', 'egg'];
+function tasteProfile(f) {
+  if (!f) return 'neutral';
+  // שיבולת שועל (41 במים / 106 בחלב) מסומנת לפי id: התגית grain מכסה גם לחם,
+  // שהוא ניטרלי, ולכן אי אפשר להישען עליה.
+  if (f.id === 41 || f.id === 106) return 'sweet';
+  if (SWEET_TAGS.some(t => f.tags.includes(t))) return 'sweet';
+  if (f.tags.includes('legume') && !f.dip) return 'savory';   // חומוס/טחינה = ממרח, לא מנת קטנייה
+  if (SAVORY_TAGS.some(t => f.tags.includes(t))) return 'savory';
+  return 'neutral';   // חלב, לחם, פריכיות, אגוזים, תוספים, פרי
+}
+// האם מותר להוסיף את f לארוחה m? מתוק ומלוח לא נפגשים; ניטרלי עובר תמיד.
+function tasteOk(f, m) {
+  const p = tasteProfile(f);
+  if (p === 'neutral' || !m || !m.items) return true;
+  const opposite = p === 'sweet' ? 'savory' : 'sweet';
+  return !m.items.some(it => tasteProfile(it.f) === opposite);
+}
+
 const MEAL_TEMPLATES = {
   breakfast: [
     { name:'eggs',        weight:3, slots:[
@@ -586,7 +615,9 @@ function convertDemeatedMeal(meal, used, ctx) {
   const cal = meal.budget || meal.totCal || 500;
   const protShare = S.proteinG * cal / Math.max(S.target, 1);   // יעד חלבון מקורב לארוחה
   const anchor = (filter, calPct, max) => {
-    const pool = ALL.filter(f => filter(f) && allowed(f) && !used.has(f.id));
+    // tasteOk גם כאן: העוגנים (ביצה/קטנייה) מלוחים, והארוחה שאיבדה בשר מלוחה בעצמה,
+    // אז בפועל זה תמיד עובר — אבל השער מונע פרצה אם מאגר העוגנים יורחב בעתיד.
+    const pool = ALL.filter(f => filter(f) && allowed(f) && !used.has(f.id) && tasteOk(f, meal));
     return pool.length ? pick(pool, used, cal * calPct, protShare, max) : null;
   };
   const strats = [
@@ -849,7 +880,11 @@ function reconcile(meals, used, ctx) {
           .sort((a, b) => a.totP - b.totP);
         for (const f of cand) {
           // בכשר לא מזריקים חלב לארוחה בחלון 6ש' אחרי בשר (m.noDairy); מועמד פרווה (ביצה/טונה/קטנייה) מותר בכל מקום
-          const tm = targets.find(m => kosherOk(f, new Set(m.items.flatMap(x => x.f ? x.f.tags : []))) &&
+          // tasteOk: לא מזריקים מלוח לארוחה מתוקה ולהפך. אם לאף ארוחה f לא מתאים —
+          // עוברים למועמד הבא, ואם אף מועמד לא נכנס פשוט לא מזריקים. חלבון חסר
+          // מדווח בכנות ב-S.menuWarning; ארוחה לא-קוהרנטית נראית לעין ואין לה תירוץ.
+          const tm = targets.find(m => tasteOk(f, m) &&
+            kosherOk(f, new Set(m.items.flatMap(x => x.f ? x.f.tags : []))) &&
             !(m.noDairy && isDairyKosher(f)));
           if (!tm) continue;
           const it = pick([f], used, missP * 5, missP, 260);
