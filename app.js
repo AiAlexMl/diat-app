@@ -100,7 +100,8 @@ function calcMacro() {
   const bmi = S.weight / (S.height / 100) ** 2;
   const pw  = bmi >= 30 ? 25 * (S.height / 100) ** 2 : S.weight;
   const pf  = (S.diet.has('vegan') || S.noTrain) ? 1.6 : 2;
-  S.proteinG = Math.round(Math.min(S.weight, pw) * pf);
+  S.protRefW = Math.min(S.weight, pw);   // משקל הייחוס לחלבון — מקור אמת יחיד (גם לרצפת הקיצוץ ב-reconcile)
+  S.proteinG = Math.round(S.protRefW * pf);
   S.fatG     = Math.max(S.gender === 'female' ? 40 : 25,
                         Math.round(S.target * 0.25 / 9));   // 25% מהקלוריות (WHO ≤30%; 20% היה הקצה התחתון — משוב מקצועי 12/07). רצפות גרמים נשמרות.
   const macroFloor = S.proteinG * 4 + S.fatG * 9 + 100 * 4;
@@ -822,6 +823,12 @@ function reconcile(meals, used, ctx) {
     return Math.max(it._minG || it.f.unitG || 30, Math.min(g, max));   // רצפת מנה מרכזית (_minG) מכובדת בכל שלבי האיזון
   };
 
+  // רצפת החלבון היומית שאף שלב איזון לא יורד מתחתיה: 1.6 ג/ק"ג, ולעולם לא מעל היעד עצמו.
+  // היה כאן `S.proteinG * (vegan ? 1 : 0.8)` בשני מקומות — נכון למתאמן (0.8 × 2 = 1.6 בדיוק),
+  // אבל אצל טבעוני *ומי שלא מתאמן* S.proteinG כבר מוקטן ל-1.6, ואז 0.8 ממנו = 1.28 ג/ק"ג.
+  // טבעונים היו פטורים ידנית; זה משלים את אותו תיקון לכל פרופיל בעל יעד מוקטן. (אובחן 07/08/2026)
+  const protCutFloor = () => Math.min(S.proteinG, Math.round((S.protRefW || S.weight) * 1.6));
+
   // רצפת מנת-חלבון מרכזית + ריכוז: מבטיחים מנת בשר/דג ריאליסטית (לא 30g) ולא מנפחים חלבון.
   // הארוחה הבשרית הגדולה ביותר נשמרת ומורמת לרצפה; ארוחת-בשר *נוספת* שתדחוף את החלבון >115%
   // מהיעד — מורידים ממנה את הבשר (נשארת פחמימה+ירק). במקרה קיצון (משקל נמוך) = ארוחה בשרית אחת.
@@ -969,7 +976,7 @@ function reconcile(meals, used, ctx) {
     const protCal = prot.reduce((s, it) => s + it.cal, 0);
     const shrinkP = prot.reduce((s, it) => s + it.p, 0);
     if (prot.length && protCal > 0) {
-      const protFloor = S.proteinG * (S.diet.has('vegan') ? 1 : 0.8);   // ~1.6 ג/ק"ג
+      const protFloor = protCutFloor();   // 1.6 ג/ק"ג
       const dP = meals.reduce((s, m) => s + m.totP, 0);
       const maxRemoveP = Math.max(0, dP - protFloor);
       const floorFactor = shrinkP > 0 ? Math.max(0, 1 - maxRemoveP / shrinkP) : 1;
@@ -989,7 +996,7 @@ function reconcile(meals, used, ctx) {
   // המאכל האהוב נשאר בצלחת). בפרופיל טהור-שומן שבו החלבון כבר על הרצפה — אין מרווח, והאזהרה תופסת.
   {
     let dF = meals.reduce((s, m) => s + (m.removed ? 0 : m.totF), 0);
-    const protFloor = S.proteinG * (S.diet.has('vegan') ? 1 : 0.8);
+    const protFloor = protCutFloor();
     if (dF > S.fatG * 1.3) {
       const fatty = items().filter(it => it.f && !it.f.isEgg && !it.f.unitLabel && !it.f.dip &&
         (it.f.tags.includes('meat') || it.f.tags.includes('fish')) && it.f.f > 5)
