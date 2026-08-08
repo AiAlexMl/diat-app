@@ -87,7 +87,7 @@ function serializeDay(day) {
     date: day.date, buildId: day.buildId || null, target: day.target, fibG: day.fibG || null, eaten: day.eaten, note: day.note || null,
     warn: day.warn, tips: day.tips || null, gLabel: day.gLabel, tLabel: day.tLabel, morningTip: day.morningTip,
     meals: day.meals.map(m => ({
-      label: m.label, icon: m.icon, time: m.time, pct: m.pct, tag: m.tag, type: m.type, removed: m.removed || false, added: m.added || false,
+      label: m.label, icon: m.icon, time: m.time, pct: m.pct, tag: m.tag, type: m.type, removed: m.removed || false, added: m.added || false, edited: m.edited || false,
       totCal: m.totCal, totP: m.totP, totC: m.totC, totF: m.totF, totFib: m.totFib,
       items: m.items.map(item),
     })),
@@ -131,6 +131,7 @@ function loadDay() {
       // לפי הדגל בלבד: גם buildMenu מוסיף ארוחות בשם "נשנוש נוסף" ליעד גבוה (בלי added) —
       // סינון לפי ה-label מחק אותן מהבסיס של מחר והשאיר יום חסר ~46% (נמדד 10/07/2026).
       day.meals = day.meals.filter(m => m.type !== 'treat' && !m.added && !m.removed);
+      day.meals.forEach(m => { m.edited = false; });   // מנעולי אתמול לא נגררים ליום חדש
       day.eaten = day.meals.map(() => false);
       day.note = null;
     }
@@ -347,6 +348,7 @@ function removeItem(mi, ii) {
   if (!DAY || !DAY.meals[mi]) return;
   const meal = DAY.meals[mi];
   meal.items.splice(ii, 1);
+  meal.edited = true;   // מנעול: איזון עתידי לא יבנה מחדש ארוחה שהמשתמשת קבעה
   if (!meal.items.length) meal.removed = true;
   recalcMeal(meal);
   if (meal.removed) {
@@ -391,7 +393,7 @@ function balanceAfterRemoval(mi) {
 
   const res = (meal && meal.removed)
     ? rebalanceDay(DAY.meals, DAY.eaten)
-    : rebuildRest(DAY.meals, DAY.eaten, mi, meal.items);
+    : rebuildRest(DAY.meals, DAY.eaten, mi, meal.items, { markEaten: false });
 
   if (devOf() > devBefore + 0.005) {          // הורע — מחזירים את היום כפי שהיה
     DAY = deserializeDay(JSON.parse(snapshot));
@@ -1385,6 +1387,7 @@ function aiAdd(id) {
   const m = DAY.meals[mi]; if (!m) return;
   const it = mkItem(f, g);
   m.items.push(it); m.removed = false;
+  m.edited = true;   // מנעול, כמו בהסרה
   recalcMeal(m); saveDay();
   DAY.note = 'הפריט נוסף לארוחה ✓ שאר היום לא השתנה.';
   editingMeals.add(mi);            // הארוחה נשארת פתוחה לעריכה גם אחרי הרינדור מחדש

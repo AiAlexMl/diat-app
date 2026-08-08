@@ -1337,12 +1337,16 @@ function manualItem(name, cal) {
 
 // מחליף את תוכן הארוחה mealIdx בפריטים שנאכלו בפועל (אחד או יותר), נועל את הנאכלות,
 // ובונה מחדש את הפתוחות מול היעדים שנותרו (rebalanceDay).
-function rebuildRest(meals, eaten, mealIdx, actualItems) {
+// markEaten=false: הארוחה ננעלת בלי להיחשב כנאכלה. נדרש ל"אזן את ההמשך" אחרי
+// עריכה — קודם הוא סימן אותה כנאכלה רק כדי לנעול אותה, וזה זייף למשתמשת את פס
+// ההתקדמות *וגם* נשלח למאמנת כארוחה שסומנה. (דווח 08/08/2026)
+function rebuildRest(meals, eaten, mealIdx, actualItems, opts) {
   const meal = meals[mealIdx];
   meal.items = Array.isArray(actualItems) ? actualItems : [actualItems];
   meal.removed = false;
   recalcMeal(meal);
-  eaten[mealIdx] = true;
+  if (opts && opts.markEaten === false) meal.edited = true;   // נעילה בלי "נאכלה"
+  else eaten[mealIdx] = true;
   return rebalanceDay(meals, eaten);
 }
 
@@ -1351,8 +1355,11 @@ function rebuildRest(meals, eaten, mealIdx, actualItems) {
 // וגם הוספת/הסרת פינוק באמצע יום (בלי לאפס סימונים).
 // משנה את meals/eaten במקום; מחזיר { note, partialWarn } להצגה.
 function rebalanceDay(meals, eaten) {
-  // פינוק מתוכנן שטרם נאכל שומר על מקומו (תקציבו שמור) — נספר כ"נעול"
-  const isLockedIdx = i => eaten[i] || meals[i].type === 'treat';
+  // פינוק מתוכנן שטרם נאכל שומר על מקומו (תקציבו שמור) — נספר כ"נעול".
+  // 🔑 וגם ארוחה שהמשתמשת ערכה ידנית (m.edited): היא הביעה כוונה מפורשת לגביה,
+  // והמנוע לא רשאי לבנות אותה מחדש. בלי זה, עריכה בארוחה אחת נמחקה ברגע
+  // שנגעו בארוחה אחרת ולחצו איזון — אובדן נתונים שקט. (דווח 08/08/2026)
+  const isLockedIdx = i => eaten[i] || meals[i].type === 'treat' || meals[i].edited;
   const open = meals.map((m, i) => ({ m, i })).filter(x => !isLockedIdx(x.i) && !x.m.removed);
   const lockedMeals = meals.filter((m, i) => isLockedIdx(i) && !m.removed);
   const isWorkout = x => !!x.m.tag;   // ארוחת לפני/אחרי אימון — מוגנת: לא נמחקת ולא מאבדת את החלבון
