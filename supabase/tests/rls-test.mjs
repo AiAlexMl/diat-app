@@ -187,6 +187,92 @@ try {
   });
   check('day_log עם תאריך עתידי (+5 ימים) נדחה', !!fe);
 
+  // ══════════════════════════════════════════════════════════
+  // 4ב. שכבת המאמנים (מיגרציה 004)
+  // המבחנים הקריטיים: מאמנת לא מגיעה ל-day_logs ולא ל-weight_logs, בשום מסלול.
+  // ══════════════════════════════════════════════════════════
+  const coach = await makeUser('coach');
+  const inviteCode = crypto.randomUUID();
+  const { data: crow, error: ce } = await admin.from('coaches').insert({
+    slug: 'rls-test-' + Date.now().toString(36),
+    display_name: 'מאמנת בדיקה', status: 'approved', invite_code: inviteCode,
+  }).select('id').single();
+  check('service_role יוצר שורת coaches', !ce, ce?.message);
+
+  const { error: cl } = await coach.client.rpc('claim_coach', { invite: inviteCode });
+  check('claim_coach תובע את החשבון', !cl, cl?.message);
+  const { error: cl2 } = await coach.client.rpc('claim_coach', { invite: inviteCode });
+  check('claim_coach שני נכשל (הקוד נשרף)', !!cl2);
+
+  // א' מתחבר בלי שיתוף משקל; ב' מתחבר *עם* שיתוף, ועם consent_at מלפני 10 ימים
+  // כדי שיהיו לו שתי שקילות בתוך החלון (ההסכמה לא פותחת עבר — ראו הערה למטה).
+  const { error: li1 } = await a.client.from('coach_links').insert({
+    trainee_id: a.id, coach_id: crow.id, trainee_display_name: 'מתאמנת א',
+    trainee_goal: 'cut', share_weight: false, consent_text_version: 1,
+  });
+  check("מתאמן א' יוצר קישור לעצמו", !li1, li1?.message);
+
+  const { error: li2 } = await a.client.from('coach_links').insert({
+    trainee_id: b.id, coach_id: crow.id, trainee_display_name: 'התחזות',
+    trainee_goal: 'cut', share_weight: true, consent_text_version: 1,
+  });
+  check("מתאמן א' לא יוצר קישור בשם ב'", !!li2);
+
+  const past = new Date(Date.now() - 10 * 864e5).toISOString();
+  await admin.from('coach_links').insert({
+    trainee_id: b.id, coach_id: crow.id, trainee_display_name: 'מתאמנת ב',
+    trainee_goal: 'maintain', share_weight: true, consent_text_version: 1, consent_at: past,
+  });
+  const older = new Date(Date.now() - 6 * 864e5).toLocaleDateString('en-CA');
+  await b.client.from('weight_logs').upsert({
+    trainee_id: b.id, date: older, weight_kg: 72.5, client_updated_at: new Date().toISOString(),
+  });
+
+  for (const u of [a, b]) {
+    await u.client.from('day_summaries').upsert({
+      trainee_id: u.id, date: today, meals_planned: 4, meals_eaten: 3, completed: false,
+    });
+  }
+
+  // 🔑 שני המבחנים שכל השכבה הזאת עומדת עליהם
+  const { data: spy1 } = await coach.client.from('day_logs').select('*');
+  check('🔑 מאמנת מנסה day_logs → 0 שורות', (spy1 || []).length === 0);
+  const { data: spy2 } = await coach.client.from('weight_logs').select('*');
+  check('🔑 מאמנת מנסה weight_logs → 0 שורות', (spy2 || []).length === 0);
+
+  const { data: sums } = await coach.client.from('day_summaries').select('trainee_id');
+  check('מאמנת קוראת day_summaries של מקושרות', (sums || []).length === 2, `got ${(sums || []).length}`);
+
+  const { data: roster, error: re } = await coach.client.rpc('coach_roster');
+  check('coach_roster מחזיר את שתי המקושרות', !re && (roster || []).length === 2, re?.message);
+  const ra = (roster || []).find(r => r.trainee_id === a.id);
+  const rb = (roster || []).find(r => r.trainee_id === b.id);
+  check("share_weight=false ⇒ אין שום שדה משקל ל-א'", !!ra && ra.weight_delta == null && ra.weight_shape == null);
+  check("share_weight=true ⇒ יש מגמה ל-ב'", !!rb && rb.weight_delta != null);
+  check('המגמה היא הפרש בלבד, וה-shape מנורמל 0-1',
+    !rb || (rb.weight_shape || []).every(v => Number(v) >= 0 && Number(v) <= 1));
+
+  // 🔑 קריאה ישירה ל-DEFINER, עוקפת את הממשק
+  const { data: wt1 } = await coach.client.rpc('coach_weight_trend', { trainee: a.id });
+  check('🔑 coach_weight_trend על מי שלא שיתפה → ריק', (wt1 || []).length === 0);
+  const { data: wt2 } = await coach.client.rpc('coach_weight_trend', { trainee: b.id });
+  check('coach_weight_trend על מי ששיתפה → מחזיר', (wt2 || []).length === 1);
+  const { data: wt3 } = await a.client.rpc('coach_weight_trend', { trainee: b.id });
+  check('🔑 מתאמנת קוראת coach_weight_trend על אחרת → ריק', (wt3 || []).length === 0);
+
+  // המאמנת מסירה (הכרעת 08/08: בלי תור אישורים, אבל עם יכולת הסרה)
+  const { error: rv } = await coach.client.from('coach_links')
+    .update({ status: 'revoked' }).eq('trainee_id', a.id).eq('status', 'active');
+  check('מאמנת מסירה מתאמנת (active → revoked)', !rv, rv?.message);
+  const { data: after } = await coach.client.rpc('coach_roster');
+  check('אחרי ההסרה היא נעלמת מהרשימה מיידית', (after || []).length === 1);
+  const { data: sums2 } = await coach.client.from('day_summaries').select('trainee_id').eq('trainee_id', a.id);
+  check("אחרי ההסרה אין גישה לסיכומים של א'", (sums2 || []).length === 0);
+
+  const { error: bad } = await coach.client.from('coaches')
+    .update({ tier: 'elite' }).eq('id', crow.id);
+  check('מאמנת לא משנה tier לעצמה (trigger)', !!bad);
+
   // ── 5. delete_my_account: מוחק את המשתמש וכל הדאטה ──
   const { error: da } = await b.client.rpc('delete_my_account');
   check('delete_my_account רץ למשתמש מחובר', !da, da?.message);
@@ -200,9 +286,10 @@ try {
   failures++;
 } finally {
   // ── ניקוי ──
-  for (const u of [a, b].filter(Boolean)) {
+  for (const u of [a, b, typeof coach !== 'undefined' ? coach : null].filter(Boolean)) {
     try { await admin.auth.admin.deleteUser(u.id); } catch (e) {}
   }
+  try { await admin.from('coaches').delete().like('slug', 'rls-test-%'); } catch (e) {}
 }
 
 console.log(failures === 0 ? '\nכל בדיקות ה-RLS עברו ✓' : `\n${failures} בדיקות נכשלו ✗`);

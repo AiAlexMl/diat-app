@@ -92,6 +92,7 @@
             payload, client_updated_at: meta.day || nowIso(),
           });
           if (error) return;
+          await pushSummary(uid, payload);
         }
         dirty.day = false;
       }
@@ -484,6 +485,174 @@
   }
   function closeLogin() { if (authEl) { authEl.remove(); authEl = null; } }
 
+  // ============================================================
+  // חיבור למאמנת (?join=<invite_code>)
+  //
+  // הלינק לעולם לא מחבר לבד — הוא רק פותח את מסך ההסכמה. בלי אישור אקטיבי
+  // לא נוצרת שורה. אם הלינק הודבק בקבוצה, כל מי שיאשר ייכנס אמנם, אבל
+  // המאמנת מסירה בלחיצה ויכולה לרענן את הקוד (rotate_invite).
+  // ============================================================
+  const JOIN_KEY = 'shapeat-join-intent';   // שורד את ה-redirect של OAuth/magic-link
+  const JOIN_MS  = 30 * 60 * 1000;
+  const CONSENT_VERSION = 1;                // כל שינוי בנוסח למטה מחייב העלאת המספר הזה
+  let joinEl = null;
+
+  function closeJoin() { if (joinEl) { joinEl.remove(); joinEl = null; } }
+
+  async function openJoin(invite) {
+    if (joinEl) return;
+    const { data, error } = await sb.rpc('coach_by_invite', { invite });
+    const coach = !error && data && data[0];
+    if (!coach) { showToastSafe('קישור ההזמנה אינו תקף'); return; }
+    track('coach_link_visited', { slug: coach.slug });
+
+    joinEl = document.createElement('div');
+    joinEl.className = 'auth-overlay';
+    joinEl.addEventListener('click', e => { if (e.target === joinEl) closeJoin(); });
+
+    const box = document.createElement('div');
+    box.className = 'auth-box';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', 'חיבור למאמן');
+
+    const h = document.createElement('h3');
+    h.textContent = 'להתחבר אל ' + coach.display_name + '?';   // textContent — שם מהמאמנת אינו HTML
+    const sub = document.createElement('p');
+    sub.className = 'auth-sub';
+    sub.textContent = coach.tagline || '';
+
+    // הרשימה המפורשת. "לא רואה" מנוסח קונקרטית כי זה מה שמייצר אמון.
+    const seeT = document.createElement('p');
+    seeT.className = 'join-h';
+    seeT.textContent = 'מה שהמאמן/ת יראו:';
+    const see = document.createElement('ul');
+    see.className = 'join-list';
+    ['אחוז הארוחות שסימנת שאכלת', 'רצף הימים שלך', 'המטרה שתבחרי כאן']
+      .forEach(t => { const li = document.createElement('li'); li.textContent = t; see.appendChild(li); });
+
+    const noT = document.createElement('p');
+    noT.className = 'join-h';
+    noT.textContent = 'מה שהם לא יראו:';
+    const no = document.createElement('ul');
+    no.className = 'join-list no';
+    ['את התפריט ואת המאכלים', 'קלוריות ומאקרו', 'את המשקל שלך בק"ג']
+      .forEach(t => { const li = document.createElement('li'); li.textContent = t; no.appendChild(li); });
+
+    const nameL = document.createElement('label');
+    nameL.className = 'join-field';
+    nameL.textContent = 'השם שיוצג למאמן/ת';
+    const nameI = document.createElement('input');
+    nameI.type = 'text';
+    nameI.className = 'auth-email';
+    nameI.maxLength = 40;
+    nameI.placeholder = 'איך שקוראים לך';
+    nameL.appendChild(nameI);
+
+    const goalL = document.createElement('label');
+    goalL.className = 'join-field';
+    goalL.textContent = 'המטרה שלי';
+    const goalS = document.createElement('select');
+    goalS.className = 'auth-email';
+    [['cut', 'חיטוב'], ['maintain', 'שמירה'], ['bulk', 'עלייה במסה']]
+      .forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; goalS.appendChild(o); });
+    try { if (typeof S !== 'undefined' && S.goal) goalS.value = S.goal; } catch (e) {}
+    goalL.appendChild(goalS);
+
+    // הסכמה 1 — חובה
+    const c1 = document.createElement('label');
+    c1.className = 'auth-consent';
+    const cb1 = document.createElement('input'); cb1.type = 'checkbox';
+    const t1 = document.createElement('span');
+    t1.textContent = 'אני מאשר/ת ש' + coach.display_name + ' יראו את ההתמדה שלי.';
+    c1.append(cb1, t1);
+
+    // הסכמה 2 — רשות, ונפרדת במכוון. משקל הוא הנתון הרגיש ביותר במוצר.
+    const c2 = document.createElement('label');
+    c2.className = 'auth-consent';
+    const cb2 = document.createElement('input'); cb2.type = 'checkbox';
+    const t2 = document.createElement('span');
+    t2.textContent = 'גם מגמת המשקל שלי (עולה/יורד וכמה) — בלי המשקל עצמו. אפשר בלי זה.';
+    c2.append(cb2, t2);
+
+    const go = document.createElement('button');
+    go.className = 'auth-google';
+    go.type = 'button';
+    go.textContent = 'מתחבר/ת';
+    go.disabled = true;
+    cb1.addEventListener('change', () => { go.disabled = !cb1.checked; });
+
+    const status = document.createElement('div');
+    status.className = 'auth-status';
+
+    go.onclick = async () => {
+      const payload = {
+        invite,
+        name: (nameI.value || '').trim().slice(0, 40) || 'מתאמן/ת',
+        goal: goalS.value,
+        weight: cb2.checked,
+        ts: Date.now(),
+      };
+      lsSet(JOIN_KEY, JSON.stringify(payload));
+      if (!session) { closeJoin(); openLogin('כדי להתחבר למאמן/ת צריך חשבון — כך ההתמדה נשמרת ומסונכרנת.'); return; }
+      go.disabled = true; status.textContent = 'מחבר…';
+      const ok = await doJoin(payload);
+      if (ok) closeJoin(); else { status.textContent = 'החיבור נכשל, נסו שוב'; go.disabled = false; }
+    };
+
+    const skip = document.createElement('button');
+    skip.className = 'auth-skip';
+    skip.type = 'button';
+    skip.textContent = 'לא עכשיו';
+    skip.onclick = closeJoin;
+
+    box.append(h, sub, seeT, see, noT, no, nameL, goalL, c1, c2, go, status, skip);
+    joinEl.appendChild(box);
+    document.body.appendChild(joinEl);
+    setTimeout(() => nameI.focus(), 30);
+  }
+
+  // יצירת הקישור בפועל. מנתק קישור קודם אם קיים (המסמך: החלפת מאמן = revoke + insert).
+  async function doJoin(p) {
+    if (!session) return false;
+    try {
+      const { data, error: e1 } = await sb.rpc('coach_by_invite', { invite: p.invite });
+      const coach = !e1 && data && data[0];
+      if (!coach) return false;
+
+      await sb.from('coach_links').update({ status: 'revoked' })
+        .eq('trainee_id', session.user.id).eq('status', 'active');
+
+      const { error } = await sb.from('coach_links').insert({
+        trainee_id: session.user.id,
+        coach_id: coach.id,
+        trainee_display_name: p.name,
+        trainee_goal: p.goal,
+        share_weight: !!p.weight,
+        consent_text_version: CONSENT_VERSION,
+      });
+      if (error) return false;
+
+      track('coach_connected', { slug: coach.slug });
+      try { lsSet('shapeat-coach', coach.slug); } catch (e) {}
+      showToastSafe('מחובר/ת ל' + coach.display_name + ' ✓', 4000);
+      // הסיכום של היום הנוכחי יעלה בסימון הבא; ההסכמה לא פותחת עבר ממילא.
+      markDirty('day');
+      return true;
+    } catch (e) { return false; }
+  }
+
+  async function revokeCoach() {
+    if (!session) return;
+    try {
+      await sb.from('coach_links').update({ status: 'revoked' })
+        .eq('trainee_id', session.user.id).eq('status', 'active');
+      track('consent_revoked');
+      try { lsSet('shapeat-coach', ''); } catch (e) {}
+      showToastSafe('נותקת מהמאמן/ת');
+    } catch (e) {}
+  }
+
   // ══════════ מיזוג ראשוני בהתחברות: pull (ענן חדש גובר) ← push (מקומי קיים עולה) ══════════
   async function firstMerge() {
     await pull();
@@ -506,6 +675,33 @@
   let accountEl = null;
 
   // סטטיסטיקות שורה מ-payload של serializeDay (eaten צמוד לאינדקסים של meals המלא)
+  // ── סיכום התמדה למאמנת (day_summaries) ──
+  // טבלה נפרדת פיזית מ-day_logs: מה שלא נמצא בה לא יכול לדלוף. אין כאן קלוריות, מאכלים או משקל.
+  // ⚠️ פינוק מתוכנן *אינו* נספר כארוחה: הוא בחירה ולא מטלה, וספירתו הייתה מאפשרת
+  //    להעלות אחוז התמדה פשוט ע"י הוספת פינוקים. (dayStats הקיים כן סופר אותו — לכן לא ממחזרים אותו.)
+  function summaryStats(payload) {
+    let planned = 0, eaten = 0;
+    (payload.meals || []).forEach((m, i) => {
+      if (m.removed || m.type === 'treat') return;
+      planned++;
+      if (payload.eaten && payload.eaten[i]) eaten++;
+    });
+    return { planned, eaten: Math.min(eaten, planned) };
+  }
+
+  async function pushSummary(uid, payload) {
+    const st = summaryStats(payload);
+    if (st.planned < 1 || st.planned > 10) return;   // מכובד ה-check ב-DB (1..10)
+    try {
+      // כשל כאן לא חוסם ולא מחזיר: היום עצמו כבר נשמר, והסימון הבא ינסה שוב.
+      await sb.from('day_summaries').upsert({
+        trainee_id: uid, date: payload.date,
+        meals_planned: st.planned, meals_eaten: st.eaten,
+        completed: st.eaten >= st.planned,
+      });
+    } catch (e) {}
+  }
+
   function dayStats(payload) {
     let planned = 0, eaten = 0, cal = 0;
     (payload.meals || []).forEach((m, i) => {
@@ -734,7 +930,26 @@
         location.reload();
       } catch (e) { showToastSafe('המחיקה נכשלה — נסה שוב'); }
     };
-    settingsWrap.append(setBack, setTitle, email, logout, del);
+    // ניתוק מהמאמן/ת — מוצג רק כשקיים קישור פעיל. אפקט מיידי דרך RLS.
+    const unlink = document.createElement('button');
+    unlink.className = 'account-logout';
+    unlink.style.display = 'none';
+    settingsWrap.append(setBack, setTitle, email, unlink, logout, del);
+    (async () => {
+      try {
+        const { data } = await sb.from('coach_links')
+          .select('id, coaches(display_name)').eq('status', 'active').maybeSingle();
+        if (!data) return;
+        const nm = (data.coaches && data.coaches.display_name) || 'המאמן/ת';
+        unlink.textContent = 'ניתוק מ' + nm;
+        unlink.style.display = '';
+        unlink.onclick = async () => {
+          if (!confirm('לנתק מ' + nm + '?\nהם יפסיקו לראות את ההתמדה שלך מיד. התפריטים והנתונים שלך לא מושפעים.')) return;
+          await revokeCoach();
+          unlink.style.display = 'none';
+        };
+      } catch (e) {}
+    })();
 
     box.append(x, gear, h, tabs, list, roWrap, settingsWrap);
     accountEl.appendChild(box);
@@ -1031,6 +1246,10 @@
       const fi = parseInt(lsGet(FAV_INTENT_KEY), 10);
       lsSet(FAV_INTENT_KEY, '');
       if (fi && Date.now() - fi < FAV_INTENT_MS) { try { window.saveFavorite(); } catch (e) {} }
+      // כוונת-חיבור למאמנת ששרדה את ה-redirect — אותו דפוס, חלון זמן זהה
+      const ji = parse(lsGet(JOIN_KEY));
+      lsSet(JOIN_KEY, '');
+      if (ji && ji.invite && Date.now() - ji.ts < JOIN_MS) { doJoin(ji); }
     }
     if (evt === 'SIGNED_OUT') closeAccountModal();
     if (evt === 'INITIAL_SESSION' && sess) pull();
@@ -1047,10 +1266,22 @@
       try { localStorage.removeItem(META_KEY); localStorage.removeItem('shapeat-signup-sent'); } catch (e) {}
     },
     isConnected: () => !!session,
+    join: openJoin,
+    revokeCoach,
   };
 
   // יום ראשון של שימוש נרשם; הבאנר יופיע רק מהיום השני / השלמת יום
   if (!lsGet('shapeat-first-seen')) lsSet('shapeat-first-seen', todayStr());
   injectAccountBtn();
   setTimeout(maybeShowBanner, 1500);
+
+  // ?join=<invite> — לינק ההזמנה של המאמנת. פותח את מסך ההסכמה בלבד, לא מחבר.
+  // מנקים מיד מה-URL כדי שרענון או שיתוף של הכתובת לא יפתחו אותו שוב.
+  try {
+    const jp = new URLSearchParams(location.search).get('join');
+    if (jp && /^[0-9a-f-]{36}$/i.test(jp)) {
+      history.replaceState(null, '', location.pathname + location.hash);
+      setTimeout(() => openJoin(jp), 400);
+    }
+  } catch (e) {}
 })();

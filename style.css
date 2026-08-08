@@ -203,6 +203,25 @@ body {
   line-height: 1.5; margin: 2px 0 12px; cursor: pointer;
 }
 .auth-consent input { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+
+/* מסך ההסכמה לחיבור למאמן/ת — הרשימות הן לב האמון, לכן "לא רואים" מודגש ולא מוצנע */
+.join-h { text-align: right; font-size: 12.5px; font-weight: 700; margin: 12px 0 4px; }
+.join-list {
+  text-align: right; margin: 0 0 4px; padding-inline-start: 18px;
+  font-size: 13px; color: var(--text-sec); line-height: 1.7;
+}
+.join-list.no { color: var(--text-tert); }
+.join-list.no li::marker { content: '✕  '; }
+.join-field {
+  display: block; text-align: right; font-size: 12.5px;
+  font-weight: 600; color: var(--text-tert); margin: 12px 0 0;
+}
+.join-field .auth-email { margin-top: 5px; }
+.auth-skip {
+  display: block; width: 100%; margin: 10px 0 0; padding: 6px;
+  border: none; background: none; font-family: inherit; font-size: 13px;
+  color: var(--text-tert); cursor: pointer; text-decoration: underline;
+}
 .auth-consent a { color: var(--accent); }
 .auth-close {
   position: absolute; top: 10px; inset-inline-start: 12px;

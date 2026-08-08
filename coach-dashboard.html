@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<!-- דשבורד המאמנים החי (שלב 2). העיצוב ממוחזר 1:1 מ-coach-demo.html.
+     ההבדלים: נתונים אמיתיים מ-coach_roster(), בלי טאב לוח (שלב 3),
+     כפתור הסרה בכל כרטיס, ואזור לינק ההזמנה. -->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>ShapEat — הדשבורד שלי</title>
+<link rel="icon" type="image/png" href="/brand/AVATAR-shapeat.png">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#4f46e5; --accent2:#7c3aed;
+    --text:#1e2235; --text-sec:#5b6072; --text-tert:#8b90a3;
+    --border:#e6e8f0; --card:#fff;
+    --ok:#10b981; --warn:#f59e0b; --bad:#dc2626;
+    --radius:16px; --shadow:0 4px 18px rgba(40,46,90,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Heebo','Segoe UI',system-ui,sans-serif;
+    background:linear-gradient(135deg,#f0f2f8,#e8ecf7) fixed;
+    color:var(--text); min-height:100vh; padding:20px 14px 40px;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .logo{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:800;letter-spacing:-.5px;direction:ltr}
+  .logo img{width:30px;height:30px;border-radius:8px;object-fit:cover}
+  .logo .eat{color:var(--accent)}
+  .signout{font-size:12px;font-weight:600;color:var(--text-tert);background:none;border:none;
+    cursor:pointer;font-family:inherit;text-decoration:underline}
+
+  .coach-bar{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+  .coach-av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.22);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:0 0 auto}
+  .coach-name{font-weight:800;font-size:18px}
+  .coach-sub{font-size:13px;opacity:.9}
+  .coach-stats{margin-right:auto;display:flex;gap:18px;text-align:center}
+  .coach-stats .n{font-weight:800;font-size:20px;line-height:1}
+  .coach-stats .l{font-size:11px;opacity:.9;margin-top:3px}
+
+  /* לינק ההזמנה */
+  .invite{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:14px 16px;margin-bottom:16px}
+  .invite h4{font-size:14px;margin-bottom:4px}
+  .invite p{font-size:12px;color:var(--text-tert);line-height:1.6;margin-bottom:9px}
+  .invite-row{display:flex;gap:8px;flex-wrap:wrap}
+  .invite-url{flex:1;min-width:180px;font-size:12px;direction:ltr;text-align:left;
+    border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:#fafbff;
+    font-family:inherit;color:var(--text-sec);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ibtn{border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;
+    font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
+  .ibtn.ghost{background:#f3f4f8;color:var(--text-sec)}
+
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
+  .trainee{display:flex;align-items:center;gap:13px}
+  .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:15px;color:#fff;flex:0 0 auto}
+  .t-main{flex:1;min-width:0}
+  .t-name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .goal{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:#eef0fb;color:var(--accent)}
+  .flag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#fef2f2;color:var(--bad)}
+  .t-metrics{display:flex;align-items:center;gap:16px;margin-top:8px;flex-wrap:wrap}
+  .metric{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-sec)}
+  .metric b{color:var(--text);font-weight:700}
+  .adh-bar{width:62px;height:7px;border-radius:99px;background:#eceef5;overflow:hidden}
+  .adh-fill{height:100%;border-radius:99px}
+  .streak{color:var(--warn);font-weight:700}
+  .trend{font-weight:700}
+  .trend.dn{color:var(--ok)} .trend.up{color:var(--bad)} .trend.fl{color:var(--text-tert)}
+  .rm{border:none;background:none;color:var(--text-tert);font-size:15px;cursor:pointer;padding:6px;flex:0 0 auto}
+  .rm:hover{color:var(--bad)}
+
+  .empty{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:30px 22px;text-align:center;color:var(--text-sec);font-size:14px;line-height:1.8}
+  .foot{text-align:center;font-size:11px;color:var(--text-tert);margin-top:22px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><img src="brand/AVATAR-shapeat.png" alt="ShapEat"><span>Shap<span class="eat">Eat</span></span></div>
+    <button class="signout" id="signout" hidden>התנתקות</button>
+  </div>
+
+  <div id="root">
+    <div class="empty">טוען…</div>
+  </div>
+
+  <div class="foot">
+    ShapEat · התזונה מחושבת אוטומטית באפליקציה.<br>
+    המאמן/ת רואה התמדה ומגמה בלבד, לא תפריט, לא קלוריות ולא משקל בק"ג.
+  </div>
+</div>
+
+<!-- גרסה + SRI זהים לאלה שב-index.html. אם מעדכנים שם — לעדכן גם כאן, בהתאמה מודעת. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js"
+        integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil"
+        crossorigin="anonymous"></script>
+<script>
+(function () {
+  'use strict';
+  var SUPA_URL  = 'https://kjlxgamalfzdjtjxfzun.supabase.co';
+  var SUPA_ANON = 'sb_publishable_cUbB5SU30DWzSdFmP2T24w_lc4PjF9f';
+  if (!window.supabase) { document.getElementById('root').innerHTML =
+    '<div class="empty">טעינת הספרייה נכשלה. רעננו את העמוד.</div>'; return; }
+  var sb = window.supabase.createClient(SUPA_URL, SUPA_ANON);
+  var root = document.getElementById('root');
+
+  // ── esc: כל שדה שמגיע מה-DB עובר כאן (מועתק מ-ui.js) ──
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  };
+
+  var AV = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6'];
+  var avColor = function (i) { return AV[i % AV.length]; };
+  var initial = function (n) { return (String(n).trim()[0] || '?'); };
+  var GOALS = { cut: 'חיטוב', maintain: 'שמירה', bulk: 'מסה' };
+
+  // גרף מגמת המשקל. shape כבר מגיע מהשרת מנורמל 0-1 — אין כאן ק"ג בשום שלב.
+  function sparkline(shape) {
+    var w = 64, h = 22;
+    if (!shape || shape.length < 2) return '';
+    var xs = function (i) { return i * (w / (shape.length - 1)); };
+    var ys = function (v) { return h - 2 - v * (h - 4); };
+    var d = shape.map(function (v, i) {
+      return (i ? 'L' : 'M') + xs(i).toFixed(1) + ',' + ys(Number(v)).toFixed(1);
+    }).join(' ');
+    var up = Number(shape[shape.length - 1]) > Number(shape[0]);
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true">' +
+      '<path d="' + d + '" fill="none" stroke="' + (up ? '#dc2626' : '#10b981') +
+      '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+  function trendLabel(delta) {
+    var d = Number(delta);
+    if (!isFinite(d) || Math.abs(d) < 0.3) return '<span class="trend fl">→ יציב</span>';
+    return '<span class="trend ' + (d < 0 ? 'dn' : 'up') + '">' +
+      (d < 0 ? '▼' : '▲') + ' ' + Math.abs(d).toFixed(1) + ' ק"ג</span>';
+  }
+  var adhColor = function (a) { return a >= 75 ? 'var(--ok)' : a >= 50 ? 'var(--warn)' : 'var(--bad)'; };
+
+  var me = null;
+
+  function inviteUrl() {
+    return location.origin + '/?join=' + me.invite_code;
+  }
+
+  function renderShell(rows) {
+    var flags = rows.filter(function (r) { return r.needs_attention; }).length;
+    var avg = rows.length
+      ? Math.round(rows.reduce(function (s, r) { return s + (r.adherence || 0); }, 0) / rows.length) : 0;
+
+    var html =
+      '<div class="coach-bar">' +
+        '<div class="coach-av">' + esc(initial(me.display_name)) + '</div>' +
+        '<div><div class="coach-name">' + esc(me.display_name) + '</div>' +
+        '<div class="coach-sub">' + esc(me.tagline || 'ShapEat') + '</div></div>' +
+        '<div class="coach-stats">' +
+          '<div><div class="n">' + rows.length + '</div><div class="l">מתאמנים</div></div>' +
+          '<div><div class="n">' + avg + '%</div><div class="l">התמדה ממוצעת</div></div>' +
+          '<div><div class="n">' + flags + '</div><div class="l">צריכים תשומת לב</div></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="invite">' +
+        '<h4>לינק ההזמנה שלך</h4>' +
+        '<p>שלחו אותו למתאמנת. היא תראה מסך הסכמה עם השם שלך, ותחליט בעצמה מה לשתף.<br>' +
+        'אם הלינק הגיע לידיים לא נכונות — רעננו אותו, והישן יפסיק לעבוד מיד.</p>' +
+        '<div class="invite-row">' +
+          '<div class="invite-url" id="iurl">' + esc(inviteUrl()) + '</div>' +
+          '<button class="ibtn" id="icopy">העתקה</button>' +
+          '<button class="ibtn ghost" id="irot">רענון</button>' +
+        '</div>' +
+      '</div>';
+
+    if (!rows.length) {
+      html += '<div class="empty">עדיין אין מתאמנות מחוברות.<br>' +
+        'שלחו את הלינק שלמעלה, ומי שתאשר תופיע כאן.</div>';
+    } else {
+      html += rows.map(function (r, i) {
+        var wm = (r.weight_delta != null && r.weight_shape)
+          ? '<span class="metric">משקל ' + sparkline(r.weight_shape) + ' ' + trendLabel(r.weight_delta) + '</span>'
+          : '';
+        return '<div class="card"><div class="trainee">' +
+          '<div class="av" style="background:' + avColor(i) + '">' + esc(initial(r.display_name)) + '</div>' +
+          '<div class="t-main">' +
+            '<div class="t-name">' + esc(r.display_name) +
+              (r.goal ? '<span class="goal">' + esc(GOALS[r.goal] || r.goal) + '</span>' : '') +
+              (r.needs_attention ? '<span class="flag">⚠ ' + (r.days_silent >= 999 ? 'טרם התחילה' : 'שתקה ' + r.days_silent + ' ימים') + '</span>' : '') +
+            '</div>' +
+            '<div class="t-metrics">' +
+              '<span class="metric">התמדה <b>' + (r.adherence || 0) + '%</b>' +
+                '<span class="adh-bar"><span class="adh-fill" style="width:' + (r.adherence || 0) +
+                '%;background:' + adhColor(r.adherence || 0) + '"></span></span></span>' +
+              wm +
+              '<span class="metric streak">🔥 ' + (r.streak || 0) +
+                '<span style="color:var(--text-tert);font-weight:400"> ימים</span></span>' +
+            '</div>' +
+          '</div>' +
+          '<button class="rm" data-id="' + esc(r.trainee_id) + '" data-name="' + esc(r.display_name) +
+            '" title="הסרה">✕</button>' +
+        '</div></div>';
+      }).join('');
+    }
+
+    root.innerHTML = html;
+    document.getElementById('signout').hidden = false;
+
+    document.getElementById('icopy').onclick = function () {
+      navigator.clipboard.writeText(inviteUrl()).then(function () {
+        document.getElementById('icopy').textContent = 'הועתק ✓';
+      }, function () {});
+    };
+    document.getElementById('irot').onclick = async function () {
+      if (!confirm('לרענן את הלינק? הישן יפסיק לעבוד מיד. מתאמנות שכבר מחוברות לא מושפעות.')) return;
+      var r = await sb.rpc('rotate_invite');
+      if (!r.error) { me.invite_code = r.data; load(); }
+    };
+    Array.prototype.forEach.call(root.querySelectorAll('.rm'), function (b) {
+      b.onclick = async function () {
+        if (!confirm('להסיר את ' + b.dataset.name + '? היא תפסיק להופיע כאן, ואת ההתמדה שלה לא תראו יותר.')) return;
+        await sb.from('coach_links').update({ status: 'revoked' })
+          .eq('trainee_id', b.dataset.id).eq('status', 'active');
+        load();
+      };
+    });
+  }
+
+  async function load() {
+    var r = await sb.rpc('coach_roster');
+    if (r.error) { root.innerHTML = '<div class="empty">טעינת הנתונים נכשלה.<br>' + esc(r.error.message) + '</div>'; return; }
+    renderShell(r.data || []);
+  }
+
+  async function start() {
+    var s = (await sb.auth.getSession()).data.session;
+
+    // ?invite=<code> — תביעת חשבון חד-פעמית מהלינק שאלכס שלח
+    var inv = new URLSearchParams(location.search).get('invite');
+    if (s && inv && /^[0-9a-f-]{36}$/i.test(inv)) {
+      await sb.rpc('claim_coach', { invite: inv });
+      history.replaceState(null, '', location.pathname);
+    }
+
+    if (!s) {
+      root.innerHTML = '<div class="empty">כדי לראות את הדשבורד צריך להתחבר.<br><br>' +
+        '<button class="ibtn" id="gin">התחברות עם Google</button></div>';
+      document.getElementById('gin').onclick = function () {
+        sb.auth.signInWithOAuth({ provider: 'google',
+          options: { redirectTo: location.origin + location.pathname + location.search } });
+      };
+      return;
+    }
+
+    var c = await sb.from('coaches').select('display_name,tagline,invite_code,slug').maybeSingle();
+    if (c.error || !c.data) {
+      root.innerHTML = '<div class="empty">החשבון הזה אינו מחובר לפרופיל מאמן/ת.<br>' +
+        'אם קיבלתם לינק הזמנה, פתחו אותו שוב.</div>';
+      document.getElementById('signout').hidden = false;
+      return;
+    }
+    me = c.data;
+    load();
+  }
+
+  document.getElementById('signout').onclick = function () {
+    sb.auth.signOut().then(function () { location.reload(); });
+  };
+  start();
+})();
+</script>
+
+<!-- Cloudflare Web Analytics (פרטי, ללא עוגיות) -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon='{"token": "40245cbfbdf240438912cd462e304eb0"}'></script>
+<!-- End Cloudflare Web Analytics -->
+</body>
+</html>
