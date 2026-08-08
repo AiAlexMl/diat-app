@@ -336,7 +336,10 @@ function toggleMealEdit(mi) {
   if (editing) editingMeals.add(mi); else editingMeals.delete(mi);
   card.classList.toggle('editing', editing);
   const btn = card.querySelector('.meal-edit-btn');
-  if (btn) btn.textContent = editing ? 'סיום' : '✏️';
+  if (btn) btn.textContent = editing ? 'שמירה ✓' : '✏️';
+  // כל שינוי נשמר מיד ממילא, אבל בלי אישור מפורש המשתמשת לא יודעת את זה
+  // ומחפשת כפתור שמירה. הסגירה היא רגע האישור. (דווח 08/08/2026)
+  if (!editing) { closeAddItemPicker(); try { showToast('הארוחה נשמרה ✓'); } catch (e) {} }
 }
 
 // ✕ על פריט = "פשוט דלג": יורד מהארוחה ומהסיכום, שאר היום לא משתנה. הערה מציעה איזון אופציונלי.
@@ -883,7 +886,7 @@ function dayHtml(day, opts) {
         <div style="display:flex;align-items:center;gap:8px">
           ${m.type === 'treat' ? `<span class="meal-time">מתי שמתחשק 🙂</span>` : m.time ? `<span class="meal-time">${m.time}</span>` : ''}
           <span class="meal-cal">${m.totCal} קל׳</span>
-          ${!ro && m.type !== 'treat' ? `<button class="meal-edit-btn" onclick="toggleMealEdit(${mi})" title="ערוך ארוחה">${isEd ? 'סיום' : '✏️'}</button>` : ''}
+          ${!ro && m.type !== 'treat' ? `<button class="meal-edit-btn" onclick="toggleMealEdit(${mi})" title="${isEd ? 'שמירת הארוחה' : 'ערוך ארוחה'}">${isEd ? 'שמירה ✓' : '✏️'}</button>` : ''}
         </div>
       </div>`;
     // למתאמנים: עדיף להרחיק את הפינוק מחלון האימון (תגי לפני/אחרי אימון שמורים לארוחות עצמן)
@@ -1010,10 +1013,16 @@ function dayHtml(day, opts) {
 // מציג את היום השמור (DAY) — נקרא גם אחרי בנייה וגם בשחזור מ-localStorage
 function renderDay() {
   if (!DAY) return;
+  // goTo מסיים ב-scrollTo(0,0). בבנייה ראשונה זה נכון, אבל בעריכה באמצע היום
+  // זה זורק את המשתמשת לראש העמוד אחרי כל הסרה/הוספה. שומרים ומחזירים.
+  const onDay = document.querySelectorAll('.screen')[4] &&
+                document.querySelectorAll('.screen')[4].style.display === 'block';
+  const y = window.scrollY;
   document.getElementById('menu-output').innerHTML = dayHtml(DAY, {});
   updateDayProgress();
   updateFavHeart();
   goTo(4);
+  if (onDay) window.scrollTo(0, y);
 }
 
 // שיתוף היום כטקסט (Web Share במובייל, וואטסאפ בדסקטופ) — לולאת ההפצה האורגנית
@@ -1272,28 +1281,68 @@ function altFoodTop() {
 
 // ── הוספת פריט לארוחה (מצב עריכה) — מוסיף ל-DAY.meals[mi] בלי לבנות מחדש (פילוסופיית "skip") ──
 let addItemMi = null;
+let aiSelId   = null;   // המאכל שנבחר. לחיצה על שורה *בוחרת* ולא מוסיפה.
+
 function aiRows(query) {
   const q = (query || '').trim();
   return ALL.filter(f => allowed(f) && (!q || f.name.includes(q))).slice(0, 80).map(f =>
-    `<div class="picker-item" role="button" tabindex="0" onclick="aiAdd(${f.id})">
+    `<div class="picker-item${f.id === aiSelId ? ' sel' : ''}" role="button" tabindex="0" onclick="aiSelect(${f.id})">
       <span>${esc(f.name)} <small>(${f.unitG ? esc(f.unitLabel || f.unitG + 'g') : '100g'})</small></span>
       <span class="picker-cal">${Math.round(f.cal * (f.unitG || 100) / 100)} קק"ל</span>
     </div>`).join('') || `<div class="picker-sub">לא נמצא מאכל</div>`;
 }
+
+// בחירה בלבד. ההוספה קורית רק בלחיצה על "הוסף לארוחה", כדי שלא ייכנסו פריטים
+// בטעות ושתהיה הזדמנות לקבוע כמות לפני שמשהו קורה.
+function aiSelect(id) {
+  aiSelId = id;
+  const list = document.getElementById('ai-list');
+  if (list) list.innerHTML = aiRows(document.getElementById('ai-search')?.value || '');
+  aiSyncQty();
+  aiFeedback('');
+}
+
+// שתי שורות כמות, ורק הרלוונטית מוצגת: מאכל שנספר ביחידות מקבל שדה יחידות
+// *וגם* שדה גרם למי שמעדיפה לשקול; מאכל שנמכר במשקל מקבל גרם בלבד.
+function aiSyncQty() {
+  const f = aiSelId ? FOOD_BY_ID[aiSelId] : null;
+  const box  = document.getElementById('ai-qty');
+  const head = document.getElementById('ai-chosen');
+  const uWrap = document.getElementById('ai-units-wrap');
+  const btn  = document.getElementById('ai-add-btn');
+  if (!box || !head || !btn) return;
+  if (!f) {
+    box.style.display = 'none';
+    head.textContent = '';
+    btn.disabled = true;
+    return;
+  }
+  box.style.display = '';
+  btn.disabled = false;
+  head.textContent = 'נבחר: ' + f.name +
+    (f.unitG ? '  ·  ' + (f.unitLabel || 'יחידה') + ' = ' + f.unitG + ' גרם' : '');
+  if (uWrap) uWrap.style.display = f.unitG ? '' : 'none';
+}
 function openAddItemPicker(mi) {
   closeAddItemPicker();
   addItemMi = mi;
+  aiSelId = null;
   const ov = document.createElement('div');
   ov.className = 'picker-overlay'; ov.id = 'add-item-picker';
   ov.innerHTML = `<div class="picker-box">
     <div class="picker-title">הוספת פריט לארוחה ➕</div>
-    <div class="picker-sub">בוחרים מאכל, קובעים כמות (אופציונלי), ומוסיפים</div>
+    <div class="picker-sub">בוחרים מאכל מהרשימה, קובעים כמות, ומוסיפים</div>
     <input id="ai-search" class="picker-input" placeholder="חיפוש מאכל..." oninput="document.getElementById('ai-list').innerHTML = aiRows(this.value)">
-    <input id="ai-grams" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="כמות: יחידות למאכל שנספר ביחידות, אחרת גרם">
-    <button class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="aiAddTop()">➕ הוסף את המאכל</button>
-    <div id="ai-feedback" class="ai-feedback"></div>
-    <div class="picker-sub" style="margin-bottom:6px">או בחר/י מהרשימה:</div>
     <div id="ai-list" class="picker-list">${aiRows('')}</div>
+    <div id="ai-chosen" class="ai-chosen"></div>
+    <div id="ai-qty" class="ai-qty" style="display:none">
+      <label id="ai-units-wrap"><span>כמות ביחידות</span>
+        <input id="ai-units" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="למשל 3"></label>
+      <label><span>או במשקל (גרם)</span>
+        <input id="ai-grams" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="למשל 150"></label>
+    </div>
+    <button id="ai-add-btn" class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="aiAddSelected()" disabled>➕ הוסף לארוחה</button>
+    <div id="ai-feedback" class="ai-feedback"></div>
     <button class="btn-primary picker-cancel" onclick="closeAddItemPicker()">סיום</button>
   </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) closeAddItemPicker(); });
@@ -1303,15 +1352,11 @@ function closeAddItemPicker() {
   const el = document.getElementById('add-item-picker');
   if (el) el.remove();
   addItemMi = null;
+  aiSelId = null;
 }
-// ⚠️ בלי חיפוש אין מה להוסיף. הגרסה הקודמת נפלה ל-`!q ||` ולכן לחיצה על הכפתור
-// עם תיבה ריקה הוסיפה את המאכל הראשון במאגר שעובר allowed — מאכל אקראי לחלוטין
-// שהמשתמשת לא בחרה. זה מה שנראה כמו "מוסיף דברים שלא ביקשתי".
-function aiAddTop() {
-  const q = (document.getElementById('ai-search')?.value || '').trim();
-  if (!q) { aiFeedback('הקלידו שם מאכל, או בחרו מהרשימה למטה', true); return; }
-  const f = ALL.find(x => allowed(x) && x.name.includes(q));
-  if (f) aiAdd(f.id); else aiFeedback('לא נמצא מאכל בשם הזה', true);
+function aiAddSelected() {
+  if (!aiSelId) { aiFeedback('בחרו מאכל מהרשימה', true); return; }
+  aiAdd(aiSelId);
 }
 
 // משוב אחרי הוספה. בלעדיו החלון נראה זהה לפני ואחרי, המשתמשת מניחה שהלחיצה
@@ -1326,15 +1371,17 @@ function aiAdd(id) {
   if (!DAY || addItemMi == null) return;
   const f = FOOD_BY_ID[id]; if (!f) return;
   const mi = addItemMi;
+  // שני שדות נפרדים במקום אחד דו-משמעי: יחידות למי שחושבת "3 פריכיות",
+  // גרם למי שמעדיפה לשקול. שדה אחד שמתפרש לפי סוג המאכל היה מבלבל, ומשתמשת
+  // שרצתה 3 קיבלה 4 כי המספר נקרא כגרמים. (דווח 08/08/2026)
+  const uIn = document.getElementById('ai-units');
   const gIn = document.getElementById('ai-grams');
-  const raw = gIn ? parseFloat(gIn.value) : NaN;
-  const has = raw > 0;
-  // מאכל שנמכר ביחידות (פריכייה, פרוסה, ביצה, פרי) — המספר הוא *יחידות*, לא גרמים.
-  // קודם השדה תמיד פורש כגרמים, ואיש אינו יודע שפריכייה שוקלת 9 גרם. משתמשת
-  // שרצתה 3 הזינה מספר בסדר גודל של קלוריות, זה יצא ~12 יחידות, ותקרת הריאליזם
-  // חתכה ל-4 בלי לומר מילה. (דווח 08/08/2026)
-  const wantUnits = has && f.unitG ? Math.max(1, Math.round(raw)) : null;
-  const g = has ? (f.unitG ? wantUnits * f.unitG : raw) : (f.unitG || 100);
+  const rawU = uIn ? parseFloat(uIn.value) : NaN;
+  const rawG = gIn ? parseFloat(gIn.value) : NaN;
+  const wantUnits = (f.unitG && rawU > 0) ? Math.max(1, Math.round(rawU)) : null;
+  const g = wantUnits ? wantUnits * f.unitG
+          : rawG > 0  ? rawG
+          : (f.unitG || 100);
   const m = DAY.meals[mi]; if (!m) return;
   const it = mkItem(f, g);
   m.items.push(it); m.removed = false;
@@ -1343,16 +1390,17 @@ function aiAdd(id) {
   editingMeals.add(mi);            // הארוחה נשארת פתוחה לעריכה גם אחרי הרינדור מחדש
   renderDay();                     // חלון ההוספה על ה-body ולכן נשאר פתוח
   addItemMi = mi;
-  if (gIn) gIn.value = '';         // כדי שהכמות מהוספה קודמת לא תידבק לפריט הבא
+  if (uIn) uIn.value = '';         // כדי שהכמות מהוספה קודמת לא תידבק לפריט הבא
+  if (gIn) gIn.value = '';
 
   // אם תקרת הריאליזם חתכה את הכמות — אומרים את זה. חיתוך שקט הוא מה שגרם
   // למשתמשת לחשוב שהמוצר שבור, כי היא ביקשה 3 וקיבלה 4 בלי הסבר.
+  // ⚠️ בלי ספירת פריטים בהודעה: היא בלבלה יותר משעזרה (דווח 08/08/2026).
   const gotUnits = f.unitG ? Math.round(it.g / f.unitG) : null;
   if (wantUnits && gotUnits && gotUnits !== wantUnits) {
     aiFeedback('נוסף ' + gotUnits + ' במקום ' + wantUnits + ', זו הכמות המרבית לארוחה אחת', true);
   } else {
-    aiFeedback('נוסף: ' + f.name + (it.dispG ? ' · ' + it.dispG : '') +
-               ' ✓  (' + m.items.length + ' פריטים בארוחה)');
+    aiFeedback('נוסף: ' + f.name + (it.dispG ? ' · ' + it.dispG : '') + ' ✓');
   }
 }
 
