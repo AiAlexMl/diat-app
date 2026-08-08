@@ -1253,9 +1253,9 @@ function openAddItemPicker(mi) {
   ov.className = 'picker-overlay'; ov.id = 'add-item-picker';
   ov.innerHTML = `<div class="picker-box">
     <div class="picker-title">הוספת פריט לארוחה ➕</div>
-    <div class="picker-sub">חיפוש מאכל, כמות בגרמים (אופציונלי), והוספה</div>
+    <div class="picker-sub">בוחרים מאכל, קובעים כמות (אופציונלי), ומוסיפים</div>
     <input id="ai-search" class="picker-input" placeholder="חיפוש מאכל..." oninput="document.getElementById('ai-list').innerHTML = aiRows(this.value)">
-    <input id="ai-grams" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="כמות בגרמים (ריק = מנה רגילה)">
+    <input id="ai-grams" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="כמות: יחידות למאכל שנספר ביחידות, אחרת גרם">
     <button class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="aiAddTop()">➕ הוסף את המאכל</button>
     <div id="ai-feedback" class="ai-feedback"></div>
     <div class="picker-sub" style="margin-bottom:6px">או בחר/י מהרשימה:</div>
@@ -1293,16 +1293,33 @@ function aiAdd(id) {
   const f = FOOD_BY_ID[id]; if (!f) return;
   const mi = addItemMi;
   const gIn = document.getElementById('ai-grams');
-  const g = (gIn && parseInt(gIn.value)) || f.unitG || 100;
+  const raw = gIn ? parseFloat(gIn.value) : NaN;
+  const has = raw > 0;
+  // מאכל שנמכר ביחידות (פריכייה, פרוסה, ביצה, פרי) — המספר הוא *יחידות*, לא גרמים.
+  // קודם השדה תמיד פורש כגרמים, ואיש אינו יודע שפריכייה שוקלת 9 גרם. משתמשת
+  // שרצתה 3 הזינה מספר בסדר גודל של קלוריות, זה יצא ~12 יחידות, ותקרת הריאליזם
+  // חתכה ל-4 בלי לומר מילה. (דווח 08/08/2026)
+  const wantUnits = has && f.unitG ? Math.max(1, Math.round(raw)) : null;
+  const g = has ? (f.unitG ? wantUnits * f.unitG : raw) : (f.unitG || 100);
   const m = DAY.meals[mi]; if (!m) return;
-  m.items.push(mkItem(f, g)); m.removed = false;
+  const it = mkItem(f, g);
+  m.items.push(it); m.removed = false;
   recalcMeal(m); saveDay();
   DAY.note = 'הפריט נוסף לארוחה ✓ שאר היום לא השתנה.';
   editingMeals.add(mi);            // הארוחה נשארת פתוחה לעריכה גם אחרי הרינדור מחדש
   renderDay();                     // חלון ההוספה על ה-body ולכן נשאר פתוח
   addItemMi = mi;
   if (gIn) gIn.value = '';         // כדי שהכמות מהוספה קודמת לא תידבק לפריט הבא
-  aiFeedback('נוסף: ' + f.name + ' ✓  (' + m.items.length + ' פריטים בארוחה)');
+
+  // אם תקרת הריאליזם חתכה את הכמות — אומרים את זה. חיתוך שקט הוא מה שגרם
+  // למשתמשת לחשוב שהמוצר שבור, כי היא ביקשה 3 וקיבלה 4 בלי הסבר.
+  const gotUnits = f.unitG ? Math.round(it.g / f.unitG) : null;
+  if (wantUnits && gotUnits && gotUnits !== wantUnits) {
+    aiFeedback('נוסף ' + gotUnits + ' במקום ' + wantUnits + ', זו הכמות המרבית לארוחה אחת', true);
+  } else {
+    aiFeedback('נוסף: ' + f.name + (it.dispG ? ' · ' + it.dispG : '') +
+               ' ✓  (' + m.items.length + ' פריטים בארוחה)');
+  }
 }
 
 function altManual() {
