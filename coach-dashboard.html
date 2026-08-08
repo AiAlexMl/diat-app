@@ -180,8 +180,15 @@
     }).join('') + '</span>';
   }
 
-  // "1 ימים" זו עברית שבורה. יחיד/רבים בכל מקום שמציג ספירת ימים.
-  var days1 = function (n) { return n === 1 ? 'יום' : n === 2 ? 'יומיים' : n + ' ימים'; };
+  // "1 ימים" זו עברית שבורה. יחיד/זוגי/רבים בכל מקום שמציג ספירת ימים.
+  var days1 = function (n) { return n === 1 ? 'יום אחד' : n === 2 ? 'יומיים' : n + ' ימים'; };
+
+  // "פעילה X מתוך Y ימים" עובד רק כש-Y הוא מספר. ליום בודד צריך ניסוח אחר לגמרי.
+  function activeText(active, window_) {
+    if (!window_) return 'הצטרפה היום';
+    if (window_ === 1) return active ? 'סימנה ביום הראשון שלה' : 'יום ראשון, עוד לא סימנה';
+    return 'פעילה <b>' + active + '</b> מתוך ' + window_ + ' ימים';
+  }
 
   // מצב במילים, בלי אחוז ובלי ציון. עובדה שהמאמנת מפרשת בעצמה.
   function statusText(r) {
@@ -243,9 +250,9 @@
           '<div class="row-detail">' +
             '<div class="t-metrics">' +
               (r.goal ? '<span class="goal">' + esc(GOALS[r.goal] || r.goal) + '</span>' : '') +
-              '<span class="metric">פעילה <b>' + (r.active_days || 0) + '</b> מתוך ' + days1(r.window_days || 0) + '</span>' +
+              '<span class="metric">' + activeText(r.active_days || 0, r.window_days || 0) + '</span>' +
               ratio + wm +
-              '<span class="metric streak">🔥 רצף ' + days1(r.streak || 0) + '</span>' +
+              (r.streak ? '<span class="metric streak">🔥 רצף ' + days1(r.streak) + '</span>' : '') +
             '</div>' +
             '<button class="rm" data-id="' + esc(r.trainee_id) + '" data-name="' + esc(r.display_name) +
               '">הסרה מהרשימה</button>' +
