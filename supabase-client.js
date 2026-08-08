@@ -757,6 +757,36 @@
     const h = document.createElement('h3');
     h.textContent = 'החשבון שלי';
 
+    // שורת סטטוס מעל הטאבים. שתי אפשרויות, שתיהן מוצגות רק למי שהן רלוונטיות לו:
+    //  • מחוברת למאמן/ת → *מי* רואה את הנתונים שלה. יחסי שיתוף פעילים חייבים להיות
+    //    גלויים במבט אחד, לא קבורים מאחורי גלגל שיניים. זה עיקרון פרטיות, לא נוחות.
+    //  • בעלת פרופיל מאמן/ת → קיצור לדשבורד, כדי שלא תהיה תלויה בלינק ששמרה.
+    // למשתמשת רגילה בלי חיבור השורה לא קיימת בכלל.
+    const statusRow = document.createElement('div');
+    statusRow.className = 'account-status';
+    statusRow.style.display = 'none';
+    (async () => {
+      try {
+        const [{ data: lnk }, { data: cch }] = await Promise.all([
+          sb.from('coach_links').select('coaches(display_name)').eq('status', 'active').maybeSingle(),
+          sb.from('coaches').select('display_name').maybeSingle(),
+        ]);
+        if (lnk && lnk.coaches) {
+          const s = document.createElement('span');
+          s.textContent = 'מחובר/ת ל' + lnk.coaches.display_name;
+          statusRow.appendChild(s);
+        }
+        if (cch) {
+          const a2 = document.createElement('a');
+          a2.href = '/coach';
+          a2.className = 'account-dash-link';
+          a2.textContent = 'הדשבורד שלי ←';
+          statusRow.appendChild(a2);
+        }
+        if (statusRow.childNodes.length) statusRow.style.display = '';
+      } catch (e) {}
+    })();
+
     // טאבים
     const tabs = document.createElement('div');
     tabs.className = 'account-tabs';
@@ -951,7 +981,7 @@
       } catch (e) {}
     })();
 
-    box.append(x, gear, h, tabs, list, roWrap, settingsWrap);
+    box.append(x, gear, h, statusRow, tabs, list, roWrap, settingsWrap);
     accountEl.appendChild(box);
     document.body.appendChild(accountEl);
 

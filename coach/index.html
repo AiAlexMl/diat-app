@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- כתובת קצרה לדשבורד המאמנים: shapeat.co.il/coach
+     אותו דפוס הפניה כמו c/<slug>/. קיים כדי שהמאמנת תוכל לשמור כתובת שאפשר
+     לומר בעל פה, במקום URL ארוך עם .html שהיא תאבד. -->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>הדשבורד שלי · ShapEat</title>
+  <link rel="icon" type="image/png" href="/brand/AVATAR-shapeat.png">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="refresh" content="0; url=/coach-dashboard.html">
+  <script>
+    // שומר על ?invite=<code> אם הגיעו לכאן עם לינק התביעה החד-פעמי
+    location.replace('/coach-dashboard.html' + (location.search || ''));
+  </script>
+</head>
+<body>
+  <p style="font-family:sans-serif;text-align:center;margin-top:40px">
+    מעביר אותך לדשבורד... <a href="/coach-dashboard.html">אם לא עברת, לחץ כאן</a>
+  </p>
+</body>
+</html>
