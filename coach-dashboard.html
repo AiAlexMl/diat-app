@@ -180,13 +180,16 @@
     }).join('') + '</span>';
   }
 
+  // "1 ימים" זו עברית שבורה. יחיד/רבים בכל מקום שמציג ספירת ימים.
+  var days1 = function (n) { return n === 1 ? 'יום' : n === 2 ? 'יומיים' : n + ' ימים'; };
+
   // מצב במילים, בלי אחוז ובלי ציון. עובדה שהמאמנת מפרשת בעצמה.
   function statusText(r) {
     if (r.window_days <= 1 && !r.active_days) return 'הצטרפה היום';
     if (r.days_silent >= 999) return 'טרם התחילה';
     if (r.days_silent === 0) return 'סימנה היום';
     if (r.days_silent === 1) return 'סימנה אתמול';
-    return 'שתקה ' + r.days_silent + ' ימים';
+    return 'שתקה ' + days1(r.days_silent);
   }
 
   function renderShell(rows) {
@@ -240,10 +243,9 @@
           '<div class="row-detail">' +
             '<div class="t-metrics">' +
               (r.goal ? '<span class="goal">' + esc(GOALS[r.goal] || r.goal) + '</span>' : '') +
-              '<span class="metric">פעילה <b>' + (r.active_days || 0) + ' מתוך ' + (r.window_days || 0) + '</b> ימים</span>' +
+              '<span class="metric">פעילה <b>' + (r.active_days || 0) + '</b> מתוך ' + days1(r.window_days || 0) + '</span>' +
               ratio + wm +
-              '<span class="metric streak">🔥 ' + (r.streak || 0) +
-                '<span style="color:var(--text-tert);font-weight:400"> ימים</span></span>' +
+              '<span class="metric streak">🔥 רצף ' + days1(r.streak || 0) + '</span>' +
             '</div>' +
             '<button class="rm" data-id="' + esc(r.trainee_id) + '" data-name="' + esc(r.display_name) +
               '">הסרה מהרשימה</button>' +
