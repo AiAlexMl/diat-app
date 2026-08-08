@@ -572,7 +572,7 @@
     c2.className = 'auth-consent';
     const cb2 = document.createElement('input'); cb2.type = 'checkbox';
     const t2 = document.createElement('span');
-    t2.textContent = 'גם מגמת המשקל שלי (עולה/יורד וכמה) — בלי המשקל עצמו. אפשר בלי זה.';
+    t2.textContent = 'גם מגמת המשקל שלי (עולה/יורד וכמה), בלי המשקל עצמו. אפשר גם בלי זה.';
     c2.append(cb2, t2);
 
     const go = document.createElement('button');
