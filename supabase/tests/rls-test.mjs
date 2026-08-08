@@ -283,6 +283,14 @@ try {
     .update({ tier: 'elite' }).eq('id', crow.id);
   check('מאמנת לא משנה tier לעצמה (trigger)', !!bad);
 
+  // 006: המאמנת פותחת את לינק ההזמנה של עצמה — לא אמורה להיכנס לרשימה שלה
+  await admin.from('profiles').upsert({ id: coach.id });
+  const { error: self } = await coach.client.from('coach_links').insert({
+    trainee_id: coach.id, coach_id: crow.id, trainee_display_name: 'אני',
+    trainee_goal: 'cut', share_weight: false, consent_text_version: 1,
+  });
+  check('מאמנת לא מתחברת כמתאמנת של עצמה (006)', !!self);
+
   // ── 5. delete_my_account: מוחק את המשתמש וכל הדאטה ──
   const { error: da } = await b.client.rpc('delete_my_account');
   check('delete_my_account רץ למשתמש מחובר', !da, da?.message);
