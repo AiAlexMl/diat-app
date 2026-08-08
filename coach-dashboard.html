@@ -55,6 +55,28 @@
     font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
   .ibtn.ghost{background:#f3f4f8;color:var(--text-sec)}
 
+  /* רשימת טריאז': שורה קומפקטית לכל מתאמנת, פירוט נפתח בלחיצה */
+  .roster{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .row + .row{border-top:1px solid var(--border)}
+  .row-head{display:flex;align-items:center;gap:11px;padding:11px 14px;cursor:pointer}
+  .row-head:hover{background:#fafbff}
+  .row.flagged .row-head{background:#fffbfb}
+  .row-name{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:8.5em}
+  .row.flagged .row-name{color:var(--bad)}
+  .row-status{margin-inline-start:auto;font-size:12px;color:var(--text-tert);white-space:nowrap}
+  .row.flagged .row-status{color:var(--bad);font-weight:600}
+  .chev{font-size:11px;color:var(--text-tert);transition:transform .15s}
+  .row.open .chev{transform:rotate(180deg)}
+  .row-detail{display:none;padding:0 14px 13px 14px}
+  .row.open .row-detail{display:block}
+
+  /* הרצועה: יום = נקודה. שלושה מצבים, כי "לפני שהצטרפה" אינו "לא סימנה" */
+  .strip{display:inline-flex;gap:2.5px;flex:0 0 auto}
+  .strip .d{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .strip .on{background:var(--ok)}
+  .strip .off{background:#e2e5ee}
+  .strip .pre{background:transparent;box-shadow:inset 0 0 0 1px #eceef5}
+
   .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
   .trainee{display:flex;align-items:center;gap:13px}
   .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -66,13 +88,12 @@
   .t-metrics{display:flex;align-items:center;gap:16px;margin-top:8px;flex-wrap:wrap}
   .metric{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-sec)}
   .metric b{color:var(--text);font-weight:700}
-  .adh-bar{width:62px;height:7px;border-radius:99px;background:#eceef5;overflow:hidden}
-  .adh-fill{height:100%;border-radius:99px}
   .streak{color:var(--warn);font-weight:700}
   .trend{font-weight:700}
   .trend.dn{color:var(--ok)} .trend.up{color:var(--bad)} .trend.fl{color:var(--text-tert)}
-  .rm{border:none;background:none;color:var(--text-tert);font-size:15px;cursor:pointer;padding:6px;flex:0 0 auto}
-  .rm:hover{color:var(--bad)}
+  .rm{border:none;background:#f6f7fb;border-radius:9px;color:var(--text-tert);font-family:inherit;
+    font-size:12px;font-weight:600;cursor:pointer;padding:6px 12px;margin-top:10px}
+  .rm:hover{background:#fef2f2;color:var(--bad)}
 
   .empty{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
     padding:30px 22px;text-align:center;color:var(--text-sec);font-size:14px;line-height:1.8}
@@ -142,7 +163,6 @@
     return '<span class="trend ' + (d < 0 ? 'dn' : 'up') + '">' +
       (d < 0 ? '▼' : '▲') + ' ' + Math.abs(d).toFixed(1) + ' ק"ג</span>';
   }
-  var adhColor = function (a) { return a >= 75 ? 'var(--ok)' : a >= 50 ? 'var(--warn)' : 'var(--bad)'; };
 
   var me = null;
 
@@ -150,10 +170,28 @@
     return location.origin + '/?join=' + me.invite_code;
   }
 
+  // רצועת 14 יום. שלושה מצבים, כי "לפני שהצטרפה" אינו "לא סימנה":
+  // null = עוד לא הייתה איתנו · 0 = לא סימנה · N = סימנה N ארוחות
+  function strip(days) {
+    if (!days || !days.length) return '';
+    return '<span class="strip">' + days.map(function (v) {
+      if (v == null) return '<i class="d pre" title="לפני ההצטרפות"></i>';
+      return v > 0 ? '<i class="d on" title="' + v + ' ארוחות"></i>' : '<i class="d off" title="לא סימנה"></i>';
+    }).join('') + '</span>';
+  }
+
+  // מצב במילים, בלי אחוז ובלי ציון. עובדה שהמאמנת מפרשת בעצמה.
+  function statusText(r) {
+    if (r.window_days <= 1 && !r.active_days) return 'הצטרפה היום';
+    if (r.days_silent >= 999) return 'טרם התחילה';
+    if (r.days_silent === 0) return 'סימנה היום';
+    if (r.days_silent === 1) return 'סימנה אתמול';
+    return 'שתקה ' + r.days_silent + ' ימים';
+  }
+
   function renderShell(rows) {
     var flags = rows.filter(function (r) { return r.needs_attention; }).length;
-    var avg = rows.length
-      ? Math.round(rows.reduce(function (s, r) { return s + (r.adherence || 0); }, 0) / rows.length) : 0;
+    var active = rows.filter(function (r) { return r.days_silent <= 1; }).length;
 
     var html =
       '<div class="coach-bar">' +
@@ -162,7 +200,7 @@
         '<div class="coach-sub">' + esc(me.tagline || 'ShapEat') + '</div></div>' +
         '<div class="coach-stats">' +
           '<div><div class="n">' + rows.length + '</div><div class="l">מתאמנים</div></div>' +
-          '<div><div class="n">' + avg + '%</div><div class="l">התמדה ממוצעת</div></div>' +
+          '<div><div class="n">' + active + '</div><div class="l">פעילות היום</div></div>' +
           '<div><div class="n">' + flags + '</div><div class="l">צריכים תשומת לב</div></div>' +
         '</div>' +
       '</div>' +
@@ -182,30 +220,36 @@
       html += '<div class="empty">עדיין אין מתאמנות מחוברות.<br>' +
         'שלחו את הלינק שלמעלה, ומי שתאשר תופיע כאן.</div>';
     } else {
-      html += rows.map(function (r, i) {
+      // שורה קומפקטית = טריאז' ("מי צריכה אותי"). הפירוט נפתח בלחיצה, רק למי
+      // שעומדים לכתוב לה. מאמנת עם 20 מתאמנות סורקת, היא לא קוראת 20 כרטיסים.
+      html += '<div class="roster">' + rows.map(function (r, i) {
         var wm = (r.weight_delta != null && r.weight_shape)
           ? '<span class="metric">משקל ' + sparkline(r.weight_shape) + ' ' + trendLabel(r.weight_delta) + '</span>'
           : '';
-        return '<div class="card"><div class="trainee">' +
-          '<div class="av" style="background:' + avColor(i) + '">' + esc(initial(r.display_name)) + '</div>' +
-          '<div class="t-main">' +
-            '<div class="t-name">' + esc(r.display_name) +
-              (r.goal ? '<span class="goal">' + esc(GOALS[r.goal] || r.goal) + '</span>' : '') +
-              (r.needs_attention ? '<span class="flag">⚠ ' + (r.days_silent >= 999 ? 'טרם התחילה' : 'שתקה ' + r.days_silent + ' ימים') + '</span>' : '') +
-            '</div>' +
+        var ratio = (r.last_eaten != null)
+          ? '<span class="metric">בפעם האחרונה <b>' + r.last_eaten + ' מתוך ' + r.last_planned + '</b> ארוחות</span>'
+          : '';
+        return '<div class="row' + (r.needs_attention ? ' flagged' : '') + '" data-i="' + i + '">' +
+          '<div class="row-head" role="button" tabindex="0">' +
+            '<div class="av" style="background:' + avColor(i) + '">' + esc(initial(r.display_name)) + '</div>' +
+            '<span class="row-name">' + (r.needs_attention ? '⚠ ' : '') + esc(r.display_name) + '</span>' +
+            strip(r.days) +
+            '<span class="row-status">' + esc(statusText(r)) + '</span>' +
+            '<span class="chev">▾</span>' +
+          '</div>' +
+          '<div class="row-detail">' +
             '<div class="t-metrics">' +
-              '<span class="metric">התמדה <b>' + (r.adherence || 0) + '%</b>' +
-                '<span class="adh-bar"><span class="adh-fill" style="width:' + (r.adherence || 0) +
-                '%;background:' + adhColor(r.adherence || 0) + '"></span></span></span>' +
-              wm +
+              (r.goal ? '<span class="goal">' + esc(GOALS[r.goal] || r.goal) + '</span>' : '') +
+              '<span class="metric">פעילה <b>' + (r.active_days || 0) + ' מתוך ' + (r.window_days || 0) + '</b> ימים</span>' +
+              ratio + wm +
               '<span class="metric streak">🔥 ' + (r.streak || 0) +
                 '<span style="color:var(--text-tert);font-weight:400"> ימים</span></span>' +
             '</div>' +
+            '<button class="rm" data-id="' + esc(r.trainee_id) + '" data-name="' + esc(r.display_name) +
+              '">הסרה מהרשימה</button>' +
           '</div>' +
-          '<button class="rm" data-id="' + esc(r.trainee_id) + '" data-name="' + esc(r.display_name) +
-            '" title="הסרה">✕</button>' +
-        '</div></div>';
-      }).join('');
+        '</div>';
+      }).join('') + '</div>';
     }
 
     root.innerHTML = html;
@@ -221,8 +265,14 @@
       var r = await sb.rpc('rotate_invite');
       if (!r.error) { me.invite_code = r.data; load(); }
     };
+    Array.prototype.forEach.call(root.querySelectorAll('.row-head'), function (h) {
+      var open = function () { h.parentElement.classList.toggle('open'); };
+      h.onclick = open;
+      h.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+    });
     Array.prototype.forEach.call(root.querySelectorAll('.rm'), function (b) {
-      b.onclick = async function () {
+      b.onclick = async function (e) {
+        e.stopPropagation();
         if (!confirm('להסיר את ' + b.dataset.name + '? היא תפסיק להופיע כאן, ואת ההתמדה שלה לא תראו יותר.')) return;
         await sb.from('coach_links').update({ status: 'revoked' })
           .eq('trainee_id', b.dataset.id).eq('status', 'active');

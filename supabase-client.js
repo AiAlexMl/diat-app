@@ -494,7 +494,8 @@
   // ============================================================
   const JOIN_KEY = 'shapeat-join-intent';   // שורד את ה-redirect של OAuth/magic-link
   const JOIN_MS  = 30 * 60 * 1000;
-  const CONSENT_VERSION = 1;                // כל שינוי בנוסח למטה מחייב העלאת המספר הזה
+  const CONSENT_VERSION = 2;                // כל שינוי בנוסח למטה מחייב העלאת המספר הזה
+                                            // v2 (08/08/2026): פירוט מפת 14 הימים במקום "אחוז הארוחות"
   let joinEl = null;
 
   function closeJoin() { if (joinEl) { joinEl.remove(); joinEl = null; } }
@@ -528,7 +529,10 @@
     seeT.textContent = 'מה שהמאמן/ת יראו:';
     const see = document.createElement('ul');
     see.className = 'join-list';
-    ['אחוז הארוחות שסימנת שאכלת', 'רצף הימים שלך', 'המטרה שתבחרי כאן']
+    // מפורט יותר מ"אחוז הארוחות": הדשבורד מציג מפה של 14 יום, ולכן ההסכמה
+    // חייבת לומר בדיוק את זה. הבטחה כללית מדי מול תצוגה גרעינית היא הטעיה.
+    ['באילו ימים סימנת, ב-14 הימים האחרונים', 'כמה ארוחות סימנת בכל יום',
+     'רצף הימים שלך', 'המטרה שתבחרי כאן']
       .forEach(t => { const li = document.createElement('li'); li.textContent = t; see.appendChild(li); });
 
     const noT = document.createElement('p');
@@ -780,7 +784,7 @@
           const a2 = document.createElement('a');
           a2.href = '/coach';
           a2.className = 'account-dash-link';
-          a2.textContent = 'הדשבורד שלי ←';
+          a2.textContent = 'דשבורד מאמנים ←';
           statusRow.appendChild(a2);
         }
         if (statusRow.childNodes.length) statusRow.style.display = '';
