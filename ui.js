@@ -362,12 +362,46 @@ function removeItem(mi, ii) {
 function balanceAfterRemoval(mi) {
   if (!DAY) return;
   const meal = DAY.meals[mi];
+
+  // אם היום כבר בתוך הסובלנות — לא נוגעים. rebuildRest בונה *ארוחות שלמות* מחדש,
+  // וכשנשארו עשרות קלוריות לחלק הכלי גס מדי: הסרת טחינה (89 קק"ל) השאירה את היום
+  // על ‎-3%‎, והאיזון העיף אותו ל-‎+7%‎ ואז הזהיר על חריגה שהוא עצמו יצר. (דווח 08/08/2026)
+  const live = DAY.meals.filter(m => !m.removed);
+  const dev = (live.reduce((s, m) => s + m.totCal, 0) - DAY.target) / Math.max(DAY.target, 1);
+  if (Math.abs(dev) <= 0.04) {
+    DAY.note = 'היום עדיין בטווח היעד, אין מה לאזן ✓';
+    DAY.noteAction = null;
+    saveDay(); renderDay();
+    return;
+  }
+
+  // 🔑 צילום לפני. בנייה מחדש שמרחיקה מהיעד לא מתקבלת.
+  // הסרת פריט *מורידה* קלוריות, ולכן היא לא יכולה להקשות על עמידה ביעד חיטוב.
+  // כשמשתמשת הסירה טחינה וקיבלה "קשה לעמוד בדיוק ביעד הקלורי", החריגה שעליה
+  // הוזהרה נוצרה כולה ע"י הבנייה מחדש: rebuildRest מרכיב ארוחות שלמות מתבניות,
+  // וזה כלי גס מדי לפער של עשרות קלוריות. (דווח 08/08/2026)
+  const snapshot = JSON.stringify(serializeDay(DAY));
+  const devOf = () => Math.abs(
+    (DAY.meals.filter(m => !m.removed).reduce((s, m) => s + m.totCal, 0) - DAY.target) /
+    Math.max(DAY.target, 1));
+  const devBefore = devOf();
+
   const res = (meal && meal.removed)
     ? rebalanceDay(DAY.meals, DAY.eaten)
     : rebuildRest(DAY.meals, DAY.eaten, mi, meal.items);
+
+  if (devOf() > devBefore + 0.005) {          // הורע — מחזירים את היום כפי שהיה
+    DAY = deserializeDay(JSON.parse(snapshot));
+    DAY.note = 'בדקנו, ואין הרכב שמתקרב ליעד יותר ממה שכבר יש. השארנו את היום כמו שהוא ✓';
+    DAY.warn.menu = null;                     // לא מזהירים על חריגה שלא קיימת
+    DAY.noteAction = null;
+    saveDay(); renderDay();
+    return;
+  }
+
   DAY.note = (res.note && (res.note.includes('חצית') || res.note.includes('כמעט מלא')))
     ? res.note
-    : 'איזנו את שאר היום סביב מה שכן תאכל ✓ — השינוי תקף להיום בלבד.';
+    : 'איזנו את שאר היום סביב מה שכן תאכל ✓ השינוי תקף להיום בלבד.';
   DAY.warn.menu = res.partialWarn || null;
   DAY.noteAction = null;
   saveDay();
