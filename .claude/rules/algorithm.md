@@ -88,7 +88,22 @@ Instrumented run (logger inside the Stage 1b block; script kept at `internal/dia
 
 ⚠️ **But it barely dented the shortfall**: menus under 1.6 g/kg went **101 → 100**, >10% shortfalls **84 → 80**, worst case unchanged at −40.4% / 1.17 g/kg. **So in the severe cases the floor was never the binding constraint.** `vegetarian|cut|morning` targets 160 g and lands at 95 g — that is 33 g *below* the floor itself, meaning protein was never cut down to the floor, it never got there. The "lost after the check" story holds for **omnivores** (they land exactly on 1.6 g/kg because the guard works); the severe vegetarian cases are a different mechanism and are **still undiagnosed**.
 
-🔴 **Larger finding still open: 100 non-vegan menus land below the 1.6 g/kg floor, and most of them do not warn** — their target is already low (non-trainers sit at 1.6), so a 6% miss never crosses the −10% trigger. Any future warning rework should key on **absolute g/kg against the floor**, not on deviation from target. Yellow cheese capped at 4 slices/meal (`maxMeal:60` in data.js); `pick()` re-snaps to whole units after clamping so unit labels never lie (watermelon 250 g "slice" bug).
+### ✅ Resolved 08/08/2026 — the defect was **10 menus, not 100**
+
+The whole "sub-1.6 g/kg" framing above compared the engine against **our target instead of against the guideline**, and the target is deliberately aspirational. Checked against the actual recommendations:
+
+| population | guideline | our target |
+|---|---|---|
+| sedentary, in a deficit | **1.0–1.2 g/kg** | 1.6 |
+| training, in a deficit | **1.6–2.2 g/kg** | 2.0 |
+
+RDA is **0.8 g/kg** and is explicitly a *minimum* (unchanged for 70+ years); health bodies publish no "optimum", only the AMDR (10–35% of energy, tolerating up to ~2.8 g/kg). The higher-protein literature converges on **≈2× RDA = 1.6 g/kg** for weight management and lean-mass preservation — i.e. **our 1.6 lands exactly on the evidence-supported figure.** ⚠️ Its *provenance* in the code is still undocumented (`(vegan || noTrain) ? 1.6 : 2` — the non-trainer inherited the vegan branch, whose stated reason was "hard to reach 2 from plants", which does not apply to a non-training omnivore). **The number is right; only its justification was missing. Do not lower it** — the aspirational target also drives satiety, which is what drives adherence.
+
+⇒ Of the 100 sub-1.6 menus, **90 are non-trainers and only 1 of those falls under 1.2 g/kg** — they are inside guideline, not defective. The genuine shortfall is the **10 trained menus** (all `vegetarian` + `morning`), 1.19–1.58 g/kg against a 1.6–2.2 guideline.
+
+**The warning was re-keyed to the guideline floor** ([app.js](../../app.js), search `protLow`): non-trainers warn under **1.0 g/kg**; trained warn under **1.6 g/kg _and_ more than 15% below their own target**. The second condition is required — a flat "trained < 1.6" fires on **141 vegan menus** whose target *is* 1.6 and who land at a median 1.57, i.e. the practical plant-protein maximum. Measured: fires on exactly **10**, leaves **0** genuinely-low menus silent in either group, total warnings 107 → 52, and **all 1,440 menus byte-identical**.
+
+**Still open (small):** those 10 `vegetarian|morning` menus. The mechanism is *not* the taste gate and *not* the cut floor — see the anchor-guard finding above (every vegetarian meal is dairy-anchored, so nothing can be injected). Yellow cheese capped at 4 slices/meal (`maxMeal:60` in data.js); `pick()` re-snaps to whole units after clamping so unit labels never lie (watermelon 250 g "slice" bug).
 
 ## Planned treats (`S.treats`)
 
