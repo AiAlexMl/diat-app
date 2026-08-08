@@ -147,6 +147,7 @@ function loadDay() {
 
 function clearDay() {
   DAY = null;
+  editingMeals.clear();   // אינדקסי הארוחות משתנים ביום חדש; בלי זה ארוחה אקראית נפתחת לעריכה
   try { localStorage.removeItem(DAY_KEY); } catch (e) {}
 }
 
@@ -324,10 +325,16 @@ function updateDayProgress() {
 //  הסרת פריט בודד מארוחה (מצב עריכה per-meal)
 // ══════════════════════════════════════════
 // כפתור ✏️ בכותרת הארוחה חושף ✕ על השורות (CSS לפי .editing) — ברירת המחדל נקייה.
+// אילו ארוחות פתוחות לעריכה. state אמיתי ולא class על ה-DOM, כי renderDay
+// בונה את הכרטיסים מחדש בכל הסרה/הוספה והיה מוחק אותו.
+const editingMeals = new Set();
+
 function toggleMealEdit(mi) {
   const card = document.getElementById(`meal-card-${mi}`);
   if (!card) return;
-  const editing = card.classList.toggle('editing');
+  const editing = !editingMeals.has(mi);
+  if (editing) editingMeals.add(mi); else editingMeals.delete(mi);
+  card.classList.toggle('editing', editing);
   const btn = card.querySelector('.meal-edit-btn');
   if (btn) btn.textContent = editing ? 'סיום' : '✏️';
 }
@@ -686,6 +693,7 @@ function updateTabBadges(mode) {
 //  מסך 5 — רינדור תפריט
 // ══════════════════════════════════════════
 function renderMenu() {
+  editingMeals.clear();   // תפריט חדש = אינדקסים חדשים
   updateMacroDisplay();
   if (inputErrors().length) { goTo(0); updateMacroDisplay(); return; }   // קלט לא תקין — חזרה למסך הפרטים עם השגיאה
   if (!S.target) { alert('יש למלא פרטים אישיים'); goTo(0); return; }
@@ -832,13 +840,16 @@ function dayHtml(day, opts) {
       ? `<span class="meal-tag ${m.tag === 'pre' ? 'tag-pre' : 'tag-post'}">${m.tag === 'pre' ? 'לפני אימון' : 'אחרי אימון'}</span>`
       : '';
 
-    html += `<div class="meal-card${day.eaten[mi] ? ' meal-eaten' : ''}${m.type === 'treat' ? ' treat-card' : ''}"${ro ? '' : ` id="meal-card-${mi}"`}>
+    // מצב העריכה נקרא מ-editingMeals ולא מה-DOM: renderDay בונה את ה-HTML מחדש
+    // אחרי כל הסרה/הוספה, וכשהמצב ישב רק כ-class הארוחה נפלה מעריכה בכל פעולה.
+    const isEd = !ro && editingMeals.has(mi);
+    html += `<div class="meal-card${day.eaten[mi] ? ' meal-eaten' : ''}${m.type === 'treat' ? ' treat-card' : ''}${isEd ? ' editing' : ''}"${ro ? '' : ` id="meal-card-${mi}"`}>
       <div class="meal-header">
         <div class="meal-title">${m.type === 'treat' ? '🍫 ' : ''}${esc(m.label)} ${tagH}</div>
         <div style="display:flex;align-items:center;gap:8px">
           ${m.type === 'treat' ? `<span class="meal-time">מתי שמתחשק 🙂</span>` : m.time ? `<span class="meal-time">${m.time}</span>` : ''}
           <span class="meal-cal">${m.totCal} קל׳</span>
-          ${!ro && m.type !== 'treat' ? `<button class="meal-edit-btn" onclick="toggleMealEdit(${mi})" title="ערוך ארוחה">✏️</button>` : ''}
+          ${!ro && m.type !== 'treat' ? `<button class="meal-edit-btn" onclick="toggleMealEdit(${mi})" title="ערוך ארוחה">${isEd ? 'סיום' : '✏️'}</button>` : ''}
         </div>
       </div>`;
     // למתאמנים: עדיף להרחיק את הפינוק מחלון האימון (תגי לפני/אחרי אימון שמורים לארוחות עצמן)
@@ -1246,6 +1257,7 @@ function openAddItemPicker(mi) {
     <input id="ai-search" class="picker-input" placeholder="חיפוש מאכל..." oninput="document.getElementById('ai-list').innerHTML = aiRows(this.value)">
     <input id="ai-grams" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="כמות בגרמים (ריק = מנה רגילה)">
     <button class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="aiAddTop()">➕ הוסף את המאכל</button>
+    <div id="ai-feedback" class="ai-feedback"></div>
     <div class="picker-sub" style="margin-bottom:6px">או בחר/י מהרשימה:</div>
     <div id="ai-list" class="picker-list">${aiRows('')}</div>
     <button class="btn-primary picker-cancel" onclick="closeAddItemPicker()">סיום</button>
@@ -1258,10 +1270,23 @@ function closeAddItemPicker() {
   if (el) el.remove();
   addItemMi = null;
 }
+// ⚠️ בלי חיפוש אין מה להוסיף. הגרסה הקודמת נפלה ל-`!q ||` ולכן לחיצה על הכפתור
+// עם תיבה ריקה הוסיפה את המאכל הראשון במאגר שעובר allowed — מאכל אקראי לחלוטין
+// שהמשתמשת לא בחרה. זה מה שנראה כמו "מוסיף דברים שלא ביקשתי".
 function aiAddTop() {
   const q = (document.getElementById('ai-search')?.value || '').trim();
-  const f = ALL.find(x => allowed(x) && (!q || x.name.includes(q)));
-  if (f) aiAdd(f.id);
+  if (!q) { aiFeedback('הקלידו שם מאכל, או בחרו מהרשימה למטה', true); return; }
+  const f = ALL.find(x => allowed(x) && x.name.includes(q));
+  if (f) aiAdd(f.id); else aiFeedback('לא נמצא מאכל בשם הזה', true);
+}
+
+// משוב אחרי הוספה. בלעדיו החלון נראה זהה לפני ואחרי, המשתמשת מניחה שהלחיצה
+// לא נקלטה ולוחצת שוב — וזה בדיוק המקור ל"פתאום נוספות 2".
+function aiFeedback(msg, isErr) {
+  const el = document.getElementById('ai-feedback');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'ai-feedback' + (isErr ? ' err' : ' ok');
 }
 function aiAdd(id) {
   if (!DAY || addItemMi == null) return;
@@ -1272,10 +1297,12 @@ function aiAdd(id) {
   const m = DAY.meals[mi]; if (!m) return;
   m.items.push(mkItem(f, g)); m.removed = false;
   recalcMeal(m); saveDay();
-  DAY.note = 'הפריט נוסף לארוחה ✓ — שאר היום לא השתנה.';
-  renderDay();   // חלון ההוספה על ה-body ולכן נשאר פתוח
-  document.getElementById(`meal-card-${mi}`)?.classList.add('editing');   // משאירים את הארוחה במצב עריכה
+  DAY.note = 'הפריט נוסף לארוחה ✓ שאר היום לא השתנה.';
+  editingMeals.add(mi);            // הארוחה נשארת פתוחה לעריכה גם אחרי הרינדור מחדש
+  renderDay();                     // חלון ההוספה על ה-body ולכן נשאר פתוח
   addItemMi = mi;
+  if (gIn) gIn.value = '';         // כדי שהכמות מהוספה קודמת לא תידבק לפריט הבא
+  aiFeedback('נוסף: ' + f.name + ' ✓  (' + m.items.length + ' פריטים בארוחה)');
 }
 
 function altManual() {

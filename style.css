@@ -981,6 +981,12 @@ input[type="number"]:focus {
 }
 .picker-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
 .picker-sub { font-size: 12.5px; color: var(--text-tert); margin-bottom: 12px; }
+
+/* משוב אחרי הוספת פריט. בלעדיו החלון נראה זהה לפני ואחרי הלחיצה,
+   והמשתמשת לוחצת שוב כי היא לא בטוחה שנקלט. */
+.ai-feedback { font-size: 12.5px; font-weight: 600; min-height: 17px; margin-bottom: 8px; }
+.ai-feedback.ok  { color: var(--ok, #10b981); }
+.ai-feedback.err { color: #dc2626; }
 .picker-list { overflow-y: auto; margin-bottom: 12px; }
 .picker-item {
   display: flex; justify-content: space-between; align-items: center;
