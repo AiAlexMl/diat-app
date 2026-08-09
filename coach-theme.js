@@ -1,7 +1,9 @@
 /* ══════════════════════════════════════════
-   coach-theme.js — מיתוג מאמן (white-label, שלב 0)
+   coach-theme.js — מיתוג מאמן (white-label)
    נטען ראשון (לפני data/app/ui) כדי להחיל צבעים מוקדם.
-   מקור המיתוג: coaches.json בריפו (שלב 2: טבלת coaches_public ב-Supabase).
+   מקור המיתוג (שלב 2, 09/08/2026): **coaches_public ב-Supabase** — מקור אמת אחד,
+   מאמנת נוצרת פעם אחת ב-Studio. coaches.json נשאר כ-fallback בלבד, ומטמון
+   מקומי (shapeat-coach-brand) צובע מיד בביקור חוזר.
    עקרונות: כל כשל ⇒ ברירת המחדל של ShapEat; שם/סלוגן רק דרך textContent (XSS);
    צבע עובר סף ניגודיות מול טקסט לבן; שורת "מופעל ע"י ShapEat" קבועה (מיגון משפטי).
    ══════════════════════════════════════════ */
@@ -47,17 +49,52 @@
   }
 
   // ── שלב ב: טעינת המיתוג והחלה ──
-  fetch('coaches.json', { cache: 'no-cache' })
+  // ── מקור המיתוג (שלב 2) ──
+  // הדאטהבייס הוא מקור האמת: מאמנת נוצרת פעם אחת ב-Studio וזהו. coaches.json
+  // נשאר כרשת ביטחון בלבד, למקרה ש-Supabase לא זמין.
+  // ⚠️ אין כאן SDK — הוא נטען אחרינו. coaches_public פתוח ל-anon, ולכן די ב-fetch
+  //    רגיל ל-REST עם המפתח הציבורי.
+  // המטמון המקומי קיים כדי שביקור חוזר יהיה ממותג מיד: בקשת רשת לפני הצביעה
+  // הראשונה יוצרת הבזק של מותג הבית, ורק הביקור הראשון חשוף לו.
+  const SUPA_URL  = 'https://kjlxgamalfzdjtjxfzun.supabase.co';
+  const SUPA_ANON = 'sb_publishable_cUbB5SU30DWzSdFmP2T24w_lc4PjF9f';
+  const CACHE_KEY = 'shapeat-coach-brand';
+
+  try {                                            // מטמון: מיתוג מיידי, בלי המתנה לרשת
+    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (cached && cached.slug === slug) apply(cached);
+  } catch (e) {}
+
+  const fromDb = fetch(SUPA_URL + '/rest/v1/coaches_public?select=*&slug=eq.' +
+      encodeURIComponent(slug), { headers: { apikey: SUPA_ANON, Accept: 'application/json' } })
     .then(r => (r.ok ? r.json() : Promise.reject(new Error('http ' + r.status))))
-    .then(list => {
-      const c = Array.isArray(list) ? list.find(x => x && x.slug === slug) : null;
-      if (!c) {                                   // המאמן ירד מהרשימה — חוזרים למותג הבית
-        try { localStorage.removeItem(KEY); } catch (e) {}
-        return;
-      }
+    .then(rows => {
+      const c = Array.isArray(rows) && rows[0];
+      if (!c) return Promise.reject(new Error('not in db'));
+      // שמות העמודות ב-DB שונים משמות המפתחות ב-coaches.json — ממפים לצורה אחת
+      return { slug: c.slug, name: c.display_name, tagline: c.tagline,
+               color: c.brand_color, color2: null, logo: c.logo_path || null };
+    });
+
+  fromDb
+    .catch(() =>                                   // Supabase לא זמין — נופלים לקובץ
+      fetch('coaches.json', { cache: 'no-cache' })
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error('http ' + r.status))))
+        .then(list => {
+          const c = Array.isArray(list) ? list.find(x => x && x.slug === slug) : null;
+          return c || Promise.reject(new Error('not in json'));
+        }))
+    .then(c => {
       apply(c);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {}
     })
-    .catch(() => { /* רשת/קובץ נפלו — בלי מיתוג הפעם, בלי למחוק את השיוך (offline-first) */ });
+    .catch(err => {
+      // "לא נמצא בשום מקום" = המאמנת ירדה ⇒ מסירים את השיוך. כשל רשת ⇒ משאירים
+      // אותו (offline-first): המטמון כבר צבע, ובפעם הבאה ננסה שוב.
+      if (String(err.message).indexOf('not in') === 0) {
+        try { localStorage.removeItem(KEY); localStorage.removeItem(CACHE_KEY); } catch (e) {}
+      }
+    });
 
   function apply(c) {
     // צבעים — מיד (לפני רינדור), רק אחרי ולידציה וסף ניגודיות
