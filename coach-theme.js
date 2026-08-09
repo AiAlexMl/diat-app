@@ -21,7 +21,8 @@
     if (param !== null) {
       const s = param.trim().toLowerCase();
       if (SLUG_RE.test(s)) { slug = s; localStorage.setItem(KEY, s); }
-      else localStorage.removeItem(KEY);          // ?coach= ריק/שגוי = הסרת מיתוג מפורשת
+      else { localStorage.removeItem(KEY);        // ?coach= ריק/שגוי = הסרת מיתוג מפורשת
+             localStorage.removeItem('shapeat-coach-brand'); }   // גם המטמון, אחרת נשארת שארית
     } else {
       slug = localStorage.getItem(KEY);
       if (slug && !SLUG_RE.test(slug)) { slug = null; localStorage.removeItem(KEY); }
