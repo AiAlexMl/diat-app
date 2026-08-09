@@ -98,6 +98,35 @@
   .empty{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
     padding:30px 22px;text-align:center;color:var(--text-sec);font-size:14px;line-height:1.8}
   .foot{text-align:center;font-size:11px;color:var(--text-tert);margin-top:22px;line-height:1.6}
+
+  /* ── טלפון ──
+     בעיצוב הרחב הכל יושב בשורה אחת, ובמסך צר זה נשבר: הכותרת התפצלה לשלוש
+     שורות, "רענון" ברח לשורה משלו, ושם המתאמנת נחתך ל"מ..". כאן מסדרים
+     מחדש לפי אנכי במקום לדחוס. */
+  @media (max-width: 560px) {
+    body{padding:14px 10px 30px}
+    .coach-bar{flex-wrap:wrap;gap:11px;padding:14px}
+    .coach-av{width:44px;height:44px;font-size:17px}
+    .coach-name{font-size:16px}
+    .coach-stats{margin-right:0;width:100%;justify-content:space-between;gap:0;
+      border-top:1px solid rgba(255,255,255,.22);padding-top:11px}
+    .coach-stats .n{font-size:18px}
+    .coach-stats .l{font-size:10px}
+
+    .invite-url{min-width:0;width:100%;flex:1 1 100%;order:-1}
+    .invite-row .ibtn{flex:1}
+
+    /* השם מקבל את כל השורה, והרצועה יורדת מתחתיו במקום להידחס לצדו */
+    .row-head{flex-wrap:wrap;gap:8px;padding:12px 13px}
+    .row-name{max-width:none;flex:1;font-size:15px}
+    .row-status{margin-inline-start:0;font-size:11.5px}
+    /* padding ולא margin: הרצועה נמתחת ל-100% מרוחב השורה, ו-margin היה נוסף
+       על הרוחב הזה ודוחף אותה אל מחוץ למסך. padding נספר בתוכו (box-sizing:border-box). */
+    .strip{order:3;flex-basis:100%;padding-inline-start:53px;gap:3px}
+    .strip .d{width:8px;height:8px}
+    .chev{margin-inline-start:auto}
+    .t-metrics{gap:10px;font-size:12px}
+  }
 </style>
 </head>
 <body>

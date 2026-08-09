@@ -533,6 +533,11 @@ input[type="number"]:focus {
   box-shadow: 0 4px 14px rgba(79,70,229,0.35);
   letter-spacing: 0.01em;
 }
+/* הכפתור "הוסף לארוחה" מתחיל נעול עד שנבחר מאכל — בלי הסגנון הזה הוא נראה פעיל ולא מגיב */
+.btn-primary:disabled {
+  opacity: .45; cursor: default; box-shadow: none; transform: none;
+}
+.btn-primary:disabled:hover { transform: none; }
 .btn-primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(79,70,229,0.45);

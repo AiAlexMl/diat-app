@@ -1437,9 +1437,9 @@ function openAddItemPicker(mi) {
       <label><span>או במשקל (גרם)</span>
         <input id="ai-grams" class="picker-input" type="number" min="1" inputmode="numeric" placeholder="למשל 150"></label>
     </div>
-    <button id="ai-add-btn" class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="aiAddSelected()" disabled>➕ הוסף לארוחה</button>
+    <button id="ai-add-btn" class="btn-primary" style="width:100%;margin-bottom:8px" onclick="aiAddSelected()" disabled>➕ הוסף לארוחה</button>
     <div id="ai-feedback" class="ai-feedback"></div>
-    <button class="btn-primary picker-cancel" onclick="closeAddItemPicker()">סיום</button>
+    <button class="btn-secondary picker-cancel" onclick="closeAddItemPicker()">סיום</button>
   </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) closeAddItemPicker(); });
   document.body.appendChild(ov);
