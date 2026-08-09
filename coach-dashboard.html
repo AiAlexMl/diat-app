@@ -218,8 +218,11 @@
     document.documentElement.style.setProperty('--accent2', dark);
   }
 
+  // ?coach= לצד ?join= — coach-theme.js קורא רק את הראשון, ובלעדיו הפתיחה
+  // הראשונה של המתאמן/ת מגיעה בלי שום מיתוג של המאמן/ת. זה בדיוק הרגע שבו
+  // המיתוג הכי חשוב. (דווח 09/08/2026)
   function inviteUrl() {
-    return location.origin + '/?join=' + me.invite_code;
+    return location.origin + '/?coach=' + encodeURIComponent(me.slug) + '&join=' + me.invite_code;
   }
 
   // רצועת 14 יום. שלושה מצבים, כי "לפני שהצטרפה" אינו "לא סימנה":
@@ -272,7 +275,7 @@
       // לשורה אחת, כדי שהמתאמנות יתפסו את המסך ולא תיבת ההעתקה.
       '<details class="invite"' + (rows.length ? '' : ' open') + '>' +
         '<summary><span>לינק ההזמנה שלך</span><span class="inv-chev">▾</span></summary>' +
-        '<p>שלחו אותו למתאמנת. היא תראה מסך הסכמה עם השם שלך, ותחליט בעצמה מה לשתף.<br>' +
+        '<p>שלחו אותו למתאמן/ת. הם יראו מסך הסכמה עם השם שלך, ויחליטו בעצמם מה לשתף.<br>' +
         'אם הלינק הגיע לידיים לא נכונות, רעננו אותו והישן יפסיק לעבוד מיד.</p>' +
         '<div class="invite-row">' +
           '<div class="invite-url" id="iurl">' + esc(inviteUrl()) + '</div>' +
