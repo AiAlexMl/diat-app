@@ -661,10 +661,18 @@
   async function syncCoachBrand() {
     if (!session) return;
     try {
-      const { data } = await sb.from('coach_links')
-        .select('coaches(slug,display_name,tagline,brand_color,logo_path)')
-        .eq('status', 'active').maybeSingle();
-      let c = data && data.coaches;
+      // ⚠️ לא לצרף ל-coaches: ה-RLS שם מתיר לקרוא *רק את שורתך שלך*, ולכן
+      // מתאמנת רגילה הייתה מקבלת null תמיד. coaches_public הוא ה-view שפתוח
+      // לכולם (מאושרים בלבד, שדות מיתוג בלבד). שתי שאילתות במקום צירוף אחד.
+      const { data: link } = await sb.from('coach_links')
+        .select('coach_id').eq('status', 'active').maybeSingle();
+      let c = null;
+      if (link && link.coach_id) {
+        const { data: pub } = await sb.from('coaches_public')
+          .select('slug,display_name,tagline,brand_color,logo_path')
+          .eq('id', link.coach_id).maybeSingle();
+        c = pub || null;
+      }
       // מאמן/ת אינם מתאמנים של עצמם (006 חוסם), ולכן אין להם שורת קישור. הם
       // עדיין אמורים לראות את המותג שלהם באפליקציה — גם כדי להדגים אותו ללקוחה.
       if (!c) {
