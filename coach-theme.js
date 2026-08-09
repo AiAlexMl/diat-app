@@ -150,4 +150,17 @@
       else stack.appendChild(pb);
     });
   }
+
+  // ── החלה מאוחרת, בלי רענון ──
+  // הצביעה קורית פעם אחת בטעינה, ולכן כל מי שמגלים עליה אחר כך נשארה בלי מיתוג
+  // עד שתרענן: מתאמנת שאישרה הסכמה מלינק בלי ?coach=, או מי שכבר מקושרת
+  // בדאטהבייס אבל הדפדפן הזה לא יודע. supabase-client קורא לזה כשהוא מגלה מאמן/ת.
+  window.shapeatApplyCoach = function (c) {
+    if (!c || !c.slug || !SLUG_RE.test(c.slug)) return;
+    try {
+      localStorage.setItem(KEY, c.slug);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+    } catch (e) {}
+    apply(c);
+  };
 })();

@@ -492,6 +492,8 @@
   // לא נוצרת שורה. אם הלינק הודבק בקבוצה, כל מי שיאשר ייכנס אמנם, אבל
   // המאמנת מסירה בלחיצה ויכולה לרענן את הקוד (rotate_invite).
   // ============================================================
+  const LINKED_KEY = 'shapeat-was-linked';  // "היה כאן קישור" — מבדיל בין מי שהתנתקה
+                                            // (⇒ להוריד מיתוג) לבין מי שרק הגיעה מלינק ממותג
   const JOIN_KEY = 'shapeat-join-intent';   // שורד את ה-redirect של OAuth/magic-link
   const JOIN_MS  = 30 * 60 * 1000;
   const CONSENT_VERSION = 2;                // כל שינוי בנוסח למטה מחייב העלאת המספר הזה
@@ -638,12 +640,54 @@
       if (error) return false;
 
       track('coach_connected', { slug: coach.slug });
-      try { lsSet('shapeat-coach', coach.slug); } catch (e) {}
+      // צובעים מיד, באותו רגע. השם, הסלוגן והצבע כבר בידינו מהמסך עצמו, ובלי זה
+      // המסך נשאר במותג הבית עד שהמתאמנת תרענן מיוזמתה. (דווח 09/08/2026)
+      try {
+        window.shapeatApplyCoach({ slug: coach.slug, name: coach.display_name,
+          tagline: coach.tagline, color: coach.brand_color, color2: null, logo: coach.logo_path || null });
+      } catch (e) { try { lsSet('shapeat-coach', coach.slug); } catch (e2) {} }
+      try { lsSet(LINKED_KEY, '1'); } catch (e) {}
       showToastSafe('מחובר/ת ל' + coach.display_name + ' ✓', 4000);
       // הסיכום של היום הנוכחי יעלה בסימון הבא; ההסכמה לא פותחת עבר ממילא.
       markDirty('day');
       return true;
     } catch (e) { return false; }
+  }
+
+  // הדאטהבייס יודע מי המאמן/ת; הדפדפן לא בהכרח. מי שהתחברה מלינק ישן, ניקתה
+  // אחסון, או נכנסת ממכשיר אחר — תקבל את המיתוג מעצמה, בלי לשלוח אותה לשום כתובת.
+  // ⚠️ *רק מוסיפים*. אין קישור ⇒ לא נוגעים במיתוג קיים, אחרת מי שהגיעה מלינק
+  //    ממותג וטרם אישרה הייתה מאבדת אותו באמצע.
+  async function syncCoachBrand() {
+    if (!session) return;
+    try {
+      const { data } = await sb.from('coach_links')
+        .select('coaches(slug,display_name,tagline,brand_color,logo_path)')
+        .eq('status', 'active').maybeSingle();
+      let c = data && data.coaches;
+      // מאמן/ת אינם מתאמנים של עצמם (006 חוסם), ולכן אין להם שורת קישור. הם
+      // עדיין אמורים לראות את המותג שלהם באפליקציה — גם כדי להדגים אותו ללקוחה.
+      if (!c) {
+        const own = await sb.from('coaches')
+          .select('slug,display_name,tagline,brand_color,logo_path').maybeSingle();
+        c = own && own.data;
+      }
+      if (c) {
+        lsSet(LINKED_KEY, '1');                        // מסמנים שהיה קישור
+        if (lsGet('shapeat-coach') === c.slug) return; // כבר ממותג נכון
+        window.shapeatApplyCoach({ slug: c.slug, name: c.display_name, tagline: c.tagline,
+          color: c.brand_color, color2: null, logo: c.logo_path || null });
+        return;
+      }
+      // אין קישור. מסירים מיתוג **רק** אם היה כאן קישור בעבר (התנתקה או הוסרה).
+      // מי שהגיעה מלינק ממותג וטרם אישרה נשארת ממותגת — המאמנת הביאה אותה,
+      // ולא נוריד לה את הווייט-לייבל באמצע השוטטות. (הוכרע 09/08/2026)
+      if (lsGet(LINKED_KEY)) {
+        lsSet(LINKED_KEY, '');
+        try { lsSet('shapeat-coach', ''); localStorage.removeItem('shapeat-coach-brand'); } catch (e) {}
+        location.reload();                             // חוזרים למותג הבית
+      }
+    } catch (e) {}
   }
 
   async function revokeCoach() {
@@ -652,7 +696,10 @@
       await sb.from('coach_links').update({ status: 'revoked' })
         .eq('trainee_id', session.user.id).eq('status', 'active');
       track('consent_revoked');
-      try { lsSet('shapeat-coach', ''); } catch (e) {}
+      // מנקים גם את הסימון וגם את המטמון, אחרת syncCoachBrand יזהה "היה קישור
+      // ואין" ויבצע רענון מיותר בטעינה הבאה
+      try { lsSet('shapeat-coach', ''); lsSet(LINKED_KEY, '');
+            localStorage.removeItem('shapeat-coach-brand'); } catch (e) {}
       showToastSafe('נותקת מהמאמן/ת');
     } catch (e) {}
   }
@@ -1287,6 +1334,7 @@
     }
     if (evt === 'SIGNED_OUT') closeAccountModal();
     if (evt === 'INITIAL_SESSION' && sess) pull();
+    if (sess) syncCoachBrand();   // מיתוג לפי הקישור בדאטהבייס, בכל כניסה
   });
 
   // חשיפה מינימלית ל-UI (האייקון בכותרת משתמש בזה; שמור תאימות לקוד קיים)
