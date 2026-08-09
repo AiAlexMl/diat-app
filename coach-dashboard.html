@@ -26,7 +26,8 @@
   }
   .wrap{max-width:760px;margin:0 auto}
   .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-  .logo{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:800;letter-spacing:-.5px;direction:ltr}
+  .logo{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:800;letter-spacing:-.5px;
+    direction:ltr;color:var(--text);text-decoration:none}
   .logo img{width:30px;height:30px;border-radius:8px;object-fit:cover}
   .logo .eat{color:var(--accent)}
   .signout{font-size:12px;font-weight:600;color:var(--text-tert);background:none;border:none;
@@ -45,8 +46,12 @@
   /* לינק ההזמנה */
   .invite{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
     padding:14px 16px;margin-bottom:16px}
-  .invite h4{font-size:14px;margin-bottom:4px}
-  .invite p{font-size:12px;color:var(--text-tert);line-height:1.6;margin-bottom:9px}
+  .invite summary{display:flex;align-items:center;justify-content:space-between;
+    font-size:14px;font-weight:700;cursor:pointer;list-style:none;min-height:24px}
+  .invite summary::-webkit-details-marker{display:none}
+  .inv-chev{color:var(--text-tert);font-size:12px;transition:transform .15s}
+  .invite[open] .inv-chev{transform:rotate(180deg)}
+  .invite p{font-size:12px;color:var(--text-tert);line-height:1.6;margin:8px 0 9px}
   .invite-row{display:flex;gap:8px;flex-wrap:wrap}
   .invite-url{flex:1;min-width:180px;font-size:12px;direction:ltr;text-align:left;
     border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:#fafbff;
@@ -132,7 +137,8 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="logo"><img src="brand/AVATAR-shapeat.png" alt="ShapEat"><span>Shap<span class="eat">Eat</span></span></div>
+    <!-- הלוגו הוא הדרך חזרה לאתר. בלעדיו הדשבורד הוא מבוי סתום. -->
+    <a class="logo" href="/" title="חזרה ל-ShapEat"><img src="brand/AVATAR-shapeat.png" alt="ShapEat"><span>Shap<span class="eat">Eat</span></span></a>
     <button class="signout" id="signout" hidden>התנתקות</button>
   </div>
 
@@ -195,6 +201,23 @@
 
   var me = null;
 
+  // ── מיתוג המאמנת ──
+  // brand_color נשמר בטבלה ולא היה בשימוש, ולכן הדשבורד נראה כמו ברירת מחדל
+  // בזמן שהדמו נראה ממותג. הצבע מאומת ב-DB ב-regex, ואנחנו מאמתים שוב לפני
+  // הזרקה ל-CSS (צבע חופשי = וקטור CSS injection), ובנוסף בודקים ניגודיות:
+  // צבע בהיר עם טקסט לבן אינו קריא, ואז נופלים לברירת המחדל.
+  function applyBrand(hex) {
+    if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    var lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    if (lum > 0.62) return;                       // בהיר מדי לטקסט לבן — נשארים בברירת המחדל
+    var dark = '#' + [r, g, b].map(function (c) {
+      return Math.round(c * 0.72).toString(16).padStart(2, '0');
+    }).join('');
+    document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent2', dark);
+  }
+
   function inviteUrl() {
     return location.origin + '/?join=' + me.invite_code;
   }
@@ -244,8 +267,11 @@
         '</div>' +
       '</div>' +
 
-      '<div class="invite">' +
-        '<h4>לינק ההזמנה שלך</h4>' +
+      // הלינק הוא פעולת התקנה שנעשית פעם אחת, לא התוכן היומיומי. כשאין עדיין
+      // מתאמנות הוא הדבר היחיד שיש לעשות ולכן פתוח; ברגע שיש רשימה הוא מתקפל
+      // לשורה אחת, כדי שהמתאמנות יתפסו את המסך ולא תיבת ההעתקה.
+      '<details class="invite"' + (rows.length ? '' : ' open') + '>' +
+        '<summary><span>לינק ההזמנה שלך</span><span class="inv-chev">▾</span></summary>' +
         '<p>שלחו אותו למתאמנת. היא תראה מסך הסכמה עם השם שלך, ותחליט בעצמה מה לשתף.<br>' +
         'אם הלינק הגיע לידיים לא נכונות, רעננו אותו והישן יפסיק לעבוד מיד.</p>' +
         '<div class="invite-row">' +
@@ -253,7 +279,7 @@
           '<button class="ibtn" id="icopy">העתקה</button>' +
           '<button class="ibtn ghost" id="irot">רענון</button>' +
         '</div>' +
-      '</div>';
+      '</details>';
 
     if (!rows.length) {
       html += '<div class="empty">עדיין אין מתאמנות מחוברות.<br>' +
@@ -387,7 +413,7 @@
 
     if (!s) { renderLogin(); return; }
 
-    var c = await sb.from('coaches').select('display_name,tagline,invite_code,slug').maybeSingle();
+    var c = await sb.from('coaches').select('display_name,tagline,invite_code,slug,brand_color').maybeSingle();
     if (c.error || !c.data) {
       root.innerHTML = '<div class="empty">החשבון הזה אינו מחובר לפרופיל מאמן/ת.<br>' +
         'אם קיבלתם לינק הזמנה, פתחו אותו שוב.</div>';
@@ -395,6 +421,7 @@
       return;
     }
     me = c.data;
+    applyBrand(me.brand_color);
     load();
   }
 
