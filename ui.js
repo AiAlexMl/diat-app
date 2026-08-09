@@ -85,7 +85,8 @@ function serializeDay(day) {
         cal: it.cal, p: it.p, c: it.c, fat: it.fat, fib: it.fib };
   return {
     date: day.date, buildId: day.buildId || null, target: day.target, fibG: day.fibG || null, eaten: day.eaten, note: day.note || null,
-    warn: day.warn, tips: day.tips || null, gLabel: day.gLabel, tLabel: day.tLabel, morningTip: day.morningTip,
+    warn: day.warn, warnAction: day.warnAction || null,
+    tips: day.tips || null, gLabel: day.gLabel, tLabel: day.tLabel, morningTip: day.morningTip,
     meals: day.meals.map(m => ({
       label: m.label, icon: m.icon, time: m.time, pct: m.pct, tag: m.tag, type: m.type, removed: m.removed || false, added: m.added || false, edited: m.edited || false,
       totCal: m.totCal, totP: m.totP, totC: m.totC, totF: m.totF, totFib: m.totFib,
@@ -107,7 +108,8 @@ function deserializeDay(d) {
         cal: it.cal, p: it.p, c: it.c, fat: it.fat, fib: it.fib };
   return {
     date: d.date, buildId: d.buildId || null, target: d.target, fibG: d.fibG || null, eaten: d.eaten || [], note: d.note || null,
-    warn: d.warn || {}, tips: d.tips || null, gLabel: d.gLabel, tLabel: d.tLabel, morningTip: d.morningTip,
+    warn: d.warn || {}, warnAction: d.warnAction || null,
+    tips: d.tips || null, gLabel: d.gLabel, tLabel: d.tLabel, morningTip: d.morningTip,
     meals: d.meals.map(m => ({ ...m, items: m.items.map(item).filter(it => it.isSaladGroup || it.f) })),
   };
 }
@@ -350,17 +352,39 @@ function checkDayLevel() {
   if (!DAY) return;
   const live = DAY.meals.filter(m => !m.removed).reduce((s, m) => s + m.totCal, 0);
   const floor = S.gender === 'female' ? 1200 : 1500;
+  const mine = w => w && (w.indexOf('התפריט ירד') === 0 || w.indexOf('אחרי העריכות') === 0);
   if (live < floor) {
     DAY.warn.menu = `התפריט ירד לכ-${Math.round(live)} קק"ל, מתחת למינימום הבריא המומלץ (${floor}). ` +
-      `זה נמוך מדי ליום שלם. אפשר להחזיר פריט שהסרת, או לאזן את ההמשך.`;
+      `זה נמוך מדי ליום שלם.`;
+    DAY.warnAction = '⚖️ אזן לערכים המומלצים';
   } else if (live < DAY.target * 0.9) {
-    DAY.warn.menu = `אחרי העריכות היום עומד על כ-${Math.round(live)} קק"ל מול יעד של ${DAY.target}. ` +
-      `כדאי לאזן את ההמשך כדי לא להישאר בחוסר גדול.`;
-  } else if (DAY.warn.menu && DAY.warn.menu.indexOf('התפריט ירד') === 0) {
+    DAY.warn.menu = `אחרי העריכות היום עומד על כ-${Math.round(live)} קק"ל מול יעד של ${DAY.target}.`;
+    DAY.warnAction = '⚖️ אזן לערכים המומלצים';
+  } else if (mine(DAY.warn.menu)) {
     DAY.warn.menu = null;   // חזרנו לטווח — מסירים את האזהרה שלנו בלבד
-  } else if (DAY.warn.menu && DAY.warn.menu.indexOf('אחרי העריכות') === 0) {
-    DAY.warn.menu = null;
+    DAY.warnAction = null;
   }
+}
+
+// איזון היום חזרה ליעד, מהאזהרה. שתי דרכים, לפי מה שבאמת אפשרי:
+// ⚠️ מנעול העריכה מגן על ארוחות שהמשתמשת קבעה, ולכן כשהיא ערכה *את כולן*
+// אין מה לאזן. במצב הזה הדרך היחידה חזרה ליעד היא בנייה מחדש, ואת זה
+// לא עושים בשקט — שואלים, כי זה מוחק בדיוק את העבודה שהמנעול הגן עליה.
+function rebalanceToTarget() {
+  if (!DAY) return;
+  const openIdx = DAY.meals.some((m, i) => !m.removed && !DAY.eaten[i] && !m.edited && m.type !== 'treat');
+  if (openIdx) {
+    const res = rebalanceDay(DAY.meals, DAY.eaten);
+    DAY.note = res.note || 'איזנו את שאר היום סביב מה שכן תאכל ✓';
+    DAY.noteAction = null;
+    checkDayLevel();
+    saveDay(); renderDay();
+    return;
+  }
+  if (!confirm('כל הארוחות נערכו ידנית, ולכן אין מה לאזן סביבן.\n' +
+               'אפשר לבנות תפריט חדש ליעד, אבל זה ימחק את העריכות שלך. להמשיך?')) return;
+  DAY.meals.forEach(m => { m.edited = false; });
+  renderMenu();
 }
 
 // ✕ על פריט = "פשוט דלג": יורד מהארוחה ומהסיכום, שאר היום לא משתנה. הערה מציעה איזון אופציונלי.
@@ -860,7 +884,11 @@ function dayHtml(day, opts) {
   if (day.warn.menu) {
     html += `<div class="bmi-warning info-warning">
       <span class="bmi-warning-icon">ℹ️</span>
-      <span>${esc(day.warn.menu)}</span>
+      <span>${esc(day.warn.menu)}` +
+      // כפתור על האזהרה עצמה, לא רק על ההערה: האזהרה היא המקום שבו המשתמשת
+      // מבינה שיש בעיה, ושם צריכה להיות גם הדרך לתקן אותה.
+      (!ro && day.warnAction ? ` <button class="note-action" onclick="rebalanceToTarget()">${esc(day.warnAction)}</button>` : '') +
+      `</span>
     </div>`;
   }
 
