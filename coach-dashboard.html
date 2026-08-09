@@ -205,7 +205,7 @@
     if (!days || !days.length) return '';
     return '<span class="strip">' + days.map(function (v) {
       if (v == null) return '<i class="d pre" title="לפני ההצטרפות"></i>';
-      return v > 0 ? '<i class="d on" title="' + v + ' ארוחות"></i>' : '<i class="d off" title="לא סימנה"></i>';
+      return v > 0 ? '<i class="d on" title="' + esc(v) + ' ארוחות"></i>' : '<i class="d off" title="לא סימנה"></i>';
     }).join('') + '</span>';
   }
 
@@ -266,7 +266,7 @@
           ? '<span class="metric">משקל ' + sparkline(r.weight_shape) + ' ' + trendLabel(r.weight_delta) + '</span>'
           : '';
         var ratio = (r.last_eaten != null)
-          ? '<span class="metric">בפעם האחרונה <b>' + r.last_eaten + ' מתוך ' + r.last_planned + '</b> ארוחות</span>'
+          ? '<span class="metric">בפעם האחרונה <b>' + esc(r.last_eaten) + ' מתוך ' + esc(r.last_planned) + '</b> ארוחות</span>'
           : '';
         return '<div class="row' + (r.needs_attention ? ' flagged' : '') + '" data-i="' + i + '">' +
           '<div class="row-head" role="button" tabindex="0">' +
