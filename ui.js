@@ -343,6 +343,26 @@ function toggleMealEdit(mi) {
   if (!editing) { closeAddItemPicker(); try { showToast('הארוחה נשמרה ✓'); } catch (e) {} }
 }
 
+// אחרי עריכה ידנית: אם היום צנח הרבה מתחת ליעד — אומרים את זה. בלי זה משתמשת
+// מוחקת פריטים ומגיעה ל-1100 קק"ל בלי ששום דבר במסך רומז שזו בעיה, בזמן
+// שלאפליקציה יש רצפה קלורית מפורשת בבנייה. (דווח 08/08/2026)
+function checkDayLevel() {
+  if (!DAY) return;
+  const live = DAY.meals.filter(m => !m.removed).reduce((s, m) => s + m.totCal, 0);
+  const floor = S.gender === 'female' ? 1200 : 1500;
+  if (live < floor) {
+    DAY.warn.menu = `התפריט ירד לכ-${Math.round(live)} קק"ל, מתחת למינימום הבריא המומלץ (${floor}). ` +
+      `זה נמוך מדי ליום שלם. אפשר להחזיר פריט שהסרת, או לאזן את ההמשך.`;
+  } else if (live < DAY.target * 0.9) {
+    DAY.warn.menu = `אחרי העריכות היום עומד על כ-${Math.round(live)} קק"ל מול יעד של ${DAY.target}. ` +
+      `כדאי לאזן את ההמשך כדי לא להישאר בחוסר גדול.`;
+  } else if (DAY.warn.menu && DAY.warn.menu.indexOf('התפריט ירד') === 0) {
+    DAY.warn.menu = null;   // חזרנו לטווח — מסירים את האזהרה שלנו בלבד
+  } else if (DAY.warn.menu && DAY.warn.menu.indexOf('אחרי העריכות') === 0) {
+    DAY.warn.menu = null;
+  }
+}
+
 // ✕ על פריט = "פשוט דלג": יורד מהארוחה ומהסיכום, שאר היום לא משתנה. הערה מציעה איזון אופציונלי.
 function removeItem(mi, ii) {
   if (!DAY || !DAY.meals[mi]) return;
@@ -358,6 +378,7 @@ function removeItem(mi, ii) {
     DAY.note = 'הסרת פריט שלא אכלת — הוא ירד מהתפריט ומהסיכום היומי. שאר הארוחות לא השתנו.';
     DAY.noteAction = { label: '⚖️ אזן את ההמשך', fn: 'balanceAfterRemoval', mi };
   }
+  checkDayLevel();
   saveDay();
   renderDay();
 }
@@ -922,8 +943,12 @@ function dayHtml(day, opts) {
           const firstWord = it.f.prep.split(/[\s\/]/)[0];
           return it.f.name.includes(firstWord) ? it.f.name : `${it.f.name} ${it.f.prep}`;
         })();
-        const imgSrc = it.f.img || `images/${it.f.id}.jpg`;
-        const thumb = `<span class="food-thumb"><img src="${esc(imgSrc)}" alt="${esc(it.f.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></span>`;
+        // פריט ידני (id -1) אינו במאגר ואין לו תמונה — בלי זה נשלחת בקשה ל-images/-1.jpg
+        // שנכשלת בכל רינדור ומלכלכת את הקונסולה.
+        const imgSrc = it.f.img || (it.f.id >= 0 ? `images/${it.f.id}.jpg` : null);
+        const thumb = imgSrc
+          ? `<span class="food-thumb"><img src="${esc(imgSrc)}" alt="${esc(it.f.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></span>`
+          : '';
         html += `<div class="food-row">
           <span class="food-row-name">${rm}${thumb}${esc(rowName)}</span>
           <div class="food-row-right">
@@ -1053,8 +1078,14 @@ function shareDay() {
 // ══════════════════════════════════════════
 // אם כבר סומנו ארוחות היום — בנייה מחדש תאפס אותן; מבקשים אישור
 function confirmRebuild() {
-  if (DAY && DAY.eaten && DAY.eaten.some(Boolean))
-    return confirm('בניית תפריט חדש תאפס את סימוני "אכלתי" של היום. להמשיך?');
+  if (!DAY) return true;
+  const marks = DAY.eaten && DAY.eaten.some(Boolean);
+  const edits = DAY.meals && DAY.meals.some(m => m.edited);
+  // עריכות ידניות שוות אזהרה בדיוק כמו סימונים. הן עבודה שהמשתמשת עשתה,
+  // ובנייה חדשה מוחקת אותן. (דווח 08/08/2026)
+  if (edits && marks) return confirm('בניית תפריט חדש תמחק את העריכות שלך ותאפס את סימוני "אכלתי". להמשיך?');
+  if (edits)          return confirm('בניית תפריט חדש תמחק את הארוחות שערכת ידנית. להמשיך?');
+  if (marks)          return confirm('בניית תפריט חדש תאפס את סימוני "אכלתי" של היום. להמשיך?');
   return true;
 }
 
@@ -1071,10 +1102,35 @@ function openTreatPicker() {
         <span>${esc(tr.name)} <small>(${esc(tr.unitLabel)})</small></span>
         <span class="picker-cal">${Math.round(tr.cal * tr.unitG / 100)} קק"ל</span>
       </div>`).join('') + `</div>
+    <div class="picker-sub" style="margin:12px 0 6px">לא ברשימה? הזינו בעצמכם:</div>
+    <div class="ai-qty">
+      <label style="flex:1.4"><span>מה הפינוק</span>
+        <input id="treat-name" class="picker-input" placeholder="למשל: עוגה של אמא"></label>
+      <label><span>כמה קלוריות</span>
+        <input id="treat-cal" class="picker-input" type="number" min="0" inputmode="numeric" placeholder="בערך"></label>
+    </div>
+    <button class="btn-secondary" style="width:100%" onclick="chooseManualTreat()">➕ הוסף פינוק</button>
+    <div id="treat-feedback" class="ai-feedback"></div>
     <button class="btn-secondary picker-cancel" onclick="closeTreatPicker()">ביטול</button>
   </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) closeTreatPicker(); });
   document.body.appendChild(ov);
+}
+
+// פינוק שאינו ברשימה. אותו מסלול בדיוק כמו פינוק רגיל, רק שהפריט נבנה
+// מ-manualItem (מאקרו שמרני: p=0, 60/40 פחמימה/שומן) כמו בטאב הידני של
+// "אכלתי משהו אחר". (ביקשה מיטלי 08/08/2026)
+function chooseManualTreat() {
+  const nEl = document.getElementById('treat-name');
+  const cEl = document.getElementById('treat-cal');
+  const fb  = document.getElementById('treat-feedback');
+  const name = (nEl && nEl.value || '').trim();
+  const cal  = cEl ? parseFloat(cEl.value) : NaN;
+  const say = (m, err) => { if (fb) { fb.textContent = m; fb.className = 'ai-feedback' + (err ? ' err' : ' ok'); } };
+  if (!name)            { say('מה הפינוק?', true); return; }
+  if (!(cal >= 0))      { say('כמה קלוריות בערך?', true); return; }
+  if (cal > 3000)       { say('נראה גבוה מדי, בדקו את המספר', true); return; }
+  chooseTreat(manualItem(name, cal));
 }
 
 function closeTreatPicker() {
@@ -1096,16 +1152,25 @@ function treatNote(res, fallback) {
   return res.note && (res.note.includes('חצית') || res.note.includes('כמעט מלא')) ? res.note : fallback;
 }
 
-function chooseTreat(id) {
+function chooseTreat(idOrItem) {
   closeTreatPicker();
-  const tf = FOOD_BY_ID[id];
-  if (!tf) return;
+  // פינוק ידני מגיע כפריט מוכן (manualItem) ולא כ-id
+  const manual = !!idOrItem && typeof idOrItem === 'object';
+  const tf = manual ? null : FOOD_BY_ID[idOrItem];
+  if (!manual && !tf) return;
   if (!S.treats) S.treats = [];
+  if (manual && !DAY) return;
 
-  // באמצע יום (כבר סומנו ארוחות): לא מאפסים כלום — מוסיפים לכרטיס הפינוק ומעדכנים רק את ההמשך
-  if (DAY && DAY.eaten.some(Boolean)) {
-    S.treats.push(id);
-    const it = mkItem(tf, tf.unitG);
+  // באמצע יום: לא מאפסים כלום — מוסיפים לכרטיס הפינוק ומעדכנים רק את ההמשך.
+  // "אמצע יום" הוא גם ארוחה *שנערכה ידנית* ולא רק ארוחה שסומנה כנאכלה: משתמשת
+  // שערכה ארוחות, ביטלה סימון והוסיפה פינוק איבדה את כל עבודתה, כי בלי סימונים
+  // הקוד נפל ל-renderMenu() שבונה הכל מאפס. (דווח 08/08/2026)
+  // פינוק ידני אינו קיים במאגר ואין לו id, ולכן buildMenu לא יכול לשריין לו תקציב
+  // בבנייה מלאה. הוא תמיד עובר במסלול אמצע-היום: מתווסף לכרטיס וההמשך מתאזן סביבו.
+  const hasManualWork = DAY && (DAY.eaten.some(Boolean) || DAY.meals.some(m => m.edited));
+  if (manual || hasManualWork) {
+    if (!manual) S.treats.push(idOrItem);
+    const it = manual ? idOrItem : mkItem(tf, tf.unitG);
     let ti = DAY.meals.findIndex(m => m.type === 'treat' && !m.removed);
     if (ti >= 0) {
       DAY.meals[ti].items.push(it);
@@ -1126,15 +1191,16 @@ function chooseTreat(id) {
     return;
   }
 
-  S.treats.push(id);
-  renderMenu();   // אין סימונים — בנייה מלאה סביב הפינוקים (אין מה לאפס)
+  S.treats.push(idOrItem);
+  renderMenu();   // אין סימונים ואין עריכות — בנייה מלאה סביב הפינוקים (אין מה לאפס)
 }
 
 function removeTreat() {
   const ti = DAY ? DAY.meals.findIndex(m => m.type === 'treat' && !m.removed) : -1;
 
-  // באמצע יום: מסירים את כרטיס הפינוק (אם טרם נאכל) ומעדכנים את ההמשך
-  if (DAY && DAY.eaten.some(Boolean) && ti >= 0 && !DAY.eaten[ti]) {
+  // באמצע יום: מסירים את כרטיס הפינוק (אם טרם נאכל) ומעדכנים את ההמשך.
+  // גם כאן "אמצע יום" כולל עריכה ידנית, לא רק סימון (ראו chooseTreat).
+  if (DAY && (DAY.eaten.some(Boolean) || DAY.meals.some(m => m.edited)) && ti >= 0 && !DAY.eaten[ti]) {
     DAY.meals[ti].removed = true;
     DAY.meals[ti].items = [];
     recalcMeal(DAY.meals[ti]);
@@ -1386,10 +1452,28 @@ function aiAdd(id) {
           : (f.unitG || 100);
   const m = DAY.meals[mi]; if (!m) return;
   const it = mkItem(f, g);
+
+  // רצפות הכמות במחולל (למשל 16g פריכיות = 4 יחידות דקות) נועדו למנוע מנות
+  // מגוחכות בתפריט *שנבנה אוטומטית*. הן לא אמורות לדרוס בקשה מפורשת: משתמשת
+  // שביקשה 3 פריכיות דקות קיבלה 4 בלי שהתכוונה. תקרת הריאליזם נשמרת (צלחת
+  // אמיתית), אבל כלפי מטה הבחירה שלה קובעת. (דווח 08/08/2026)
+  if (wantUnits && f.unitG) {
+    const got = Math.round(it.g / f.unitG);
+    if (got > wantUnits) {
+      const exact = wantUnits * f.unitG;
+      it.g = exact;
+      it.dispG = f.tags.includes('cracker') ? `${wantUnits} פריכיות (${exact}g)`
+               : wantUnits === 1 ? (f.unitLabel || `${exact}g`)
+               : `${wantUnits} ${f.plural || 'יחידות'}`;
+      setMacros(it, f, exact);
+    }
+  }
+
   m.items.push(it); m.removed = false;
   m.edited = true;   // מנעול, כמו בהסרה
   recalcMeal(m); saveDay();
   DAY.note = 'הפריט נוסף לארוחה ✓ שאר היום לא השתנה.';
+  checkDayLevel();                 // הוספה יכולה גם להחזיר את היום לטווח
   editingMeals.add(mi);            // הארוחה נשארת פתוחה לעריכה גם אחרי הרינדור מחדש
   renderDay();                     // חלון ההוספה על ה-body ולכן נשאר פתוח
   addItemMi = mi;
@@ -1401,6 +1485,7 @@ function aiAdd(id) {
   // ⚠️ בלי ספירת פריטים בהודעה: היא בלבלה יותר משעזרה (דווח 08/08/2026).
   const gotUnits = f.unitG ? Math.round(it.g / f.unitG) : null;
   if (wantUnits && gotUnits && gotUnits !== wantUnits) {
+    // רק חיתוך כלפי מעלה נשאר אפשרי, וההודעה אומרת את הכיוון הנכון
     aiFeedback('נוסף ' + gotUnits + ' במקום ' + wantUnits + ', זו הכמות המרבית לארוחה אחת', true);
   } else {
     aiFeedback('נוסף: ' + f.name + (it.dispG ? ' · ' + it.dispG : '') + ' ✓');
