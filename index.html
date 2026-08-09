@@ -15,8 +15,12 @@
   <meta property="og:url" content="https://shapeat.co.il/">
   <meta name="twitter:card" content="summary">
   <link rel="icon" type="image/png" href="brand/AVATAR-shapeat.png">
-  <link rel="stylesheet" href="style.css">
-  <script src="coach-theme.js"></script>
+  <!-- ?v= — GitHub Pages מקשש קבצי JS/CSS בעקשנות, ובלי זה מכשיר שכבר ביקר
+       ממשיך להריץ גרסה ישנה גם אחרי פריסה. זה בדיוק מה שקרה ב-09/08: ארבעה
+       תיקונים רצופים לא הגיעו לטלפון, ורדפנו אחרי באג שכבר תוקן.
+       ⚠️ בכל שינוי ב-js/css — להעלות את המספר הזה (תאריך YYYYMMDD). -->
+  <link rel="stylesheet" href="style.css?v=20260810">
+  <script src="coach-theme.js?v=20260810"></script>
 </head>
 <body>
 
@@ -213,15 +217,15 @@
   <a href="accessibility.html" style="color:#8b90a3;text-decoration:none">הצהרת נגישות</a>
 </footer>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
-<script src="ui.js"></script>
+<script src="data.js?v=20260810"></script>
+<script src="app.js?v=20260810"></script>
+<script src="ui.js?v=20260810"></script>
 <!-- שכבת חשבון/סנכרון (שלב 1) — גרסה נעולה + SRI (אין קוד צד-שלישי בלי אימות hash) -->
 <script defer
   src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js"
   integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil"
   crossorigin="anonymous"></script>
-<script defer src="supabase-client.js"></script>
+<script defer src="supabase-client.js?v=20260810"></script>
 
 <!-- חלון ויתור -->
 <div class="disclaimer-overlay" id="disclaimer-overlay" role="dialog" aria-modal="true" aria-labelledby="disc-title">
