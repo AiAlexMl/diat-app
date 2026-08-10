@@ -683,8 +683,20 @@
       if (c) {
         lsSet(LINKED_KEY, '1');                        // מסמנים שהיה קישור
         if (lsGet('shapeat-coach') === c.slug) return; // כבר ממותג נכון
-        window.shapeatApplyCoach({ slug: c.slug, name: c.display_name, tagline: c.tagline,
-          color: c.brand_color, color2: null, logo: c.logo_path || null });
+        const brand = { slug: c.slug, name: c.display_name, tagline: c.tagline,
+          color: c.brand_color, color2: null, logo: c.logo_path || null };
+        // נפילה לאחור אם coach-theme לא נטען: כותבים את המיתוג ומרעננים. פחות חלק
+        // מצביעה חיה, אבל המסך *כן* יוצא ממותג. בלי זה כשל כאן נבלע ב-catch ונשאר
+        // בלתי נראה לחלוטין, וכך בדיוק הוחמץ הבאג של 09/08.
+        if (typeof window.shapeatApplyCoach === 'function') {
+          window.shapeatApplyCoach(brand);
+        } else {
+          try {
+            lsSet('shapeat-coach', c.slug);
+            localStorage.setItem('shapeat-coach-brand', JSON.stringify(brand));
+            location.reload();
+          } catch (e) {}
+        }
         return;
       }
       // אין קישור. מסירים מיתוג **רק** אם היה כאן קישור בעבר (התנתקה או הוסרה).

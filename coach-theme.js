@@ -11,8 +11,25 @@
   'use strict';
 
   const KEY = 'shapeat-coach';
+  const CACHE_KEY = 'shapeat-coach-brand';               // מטמון המיתוג, לצביעה מיידית בביקור חוזר
   const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;   // ASCII בלבד, כמו ה-check ב-DB
   const HEX_RE  = /^#[0-9a-fA-F]{6}$/;
+
+  // ── ההחלה המאוחרת מוגדרת כאן, לפני כל יציאה מוקדמת ──
+  // הצביעה בטעינה קורית פעם אחת, ולכן מי שמתגלה אחר כך נשארת בלי מיתוג עד רענון:
+  // מתאמנת שאישרה הסכמה מלינק בלי ?coach=, או מי שכבר מקושרת בדאטהבייס אבל
+  // הדפדפן הזה לא יודע. supabase-client קורא לזה כשהוא מגלה מאמן/ת.
+  // ⚠️ **חייב להיות מעל `if (!slug) return`** — מי שאין לו מיתוג שמור הוא בדיוק
+  //    מי שההחלה האוטומטית נועדה לו, וההגדרה מתחת ליציאה הותירה אותו בלי הפונקציה
+  //    (ה-catch בצד הקורא בלע את ה-TypeError, ולכן הכשל היה שקט לגמרי). 10/08/2026
+  window.shapeatApplyCoach = function (c) {
+    if (!c || !c.slug || !SLUG_RE.test(c.slug)) return;
+    try {
+      localStorage.setItem(KEY, c.slug);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+    } catch (e) {}
+    apply(c);
+  };
 
   // ── שלב א: מי המאמן? פרמטר ב-URL גובר; אחרת מה שנשמר מביקור קודם ──
   let slug = null;
@@ -22,7 +39,7 @@
       const s = param.trim().toLowerCase();
       if (SLUG_RE.test(s)) { slug = s; localStorage.setItem(KEY, s); }
       else { localStorage.removeItem(KEY);        // ?coach= ריק/שגוי = הסרת מיתוג מפורשת
-             localStorage.removeItem('shapeat-coach-brand'); }   // גם המטמון, אחרת נשארת שארית
+             localStorage.removeItem(CACHE_KEY); }   // גם המטמון, אחרת נשארת שארית
     } else {
       slug = localStorage.getItem(KEY);
       if (slug && !SLUG_RE.test(slug)) { slug = null; localStorage.removeItem(KEY); }
@@ -59,9 +76,8 @@
   // הראשונה יוצרת הבזק של מותג הבית, ורק הביקור הראשון חשוף לו.
   const SUPA_URL  = 'https://kjlxgamalfzdjtjxfzun.supabase.co';
   const SUPA_ANON = 'sb_publishable_cUbB5SU30DWzSdFmP2T24w_lc4PjF9f';
-  const CACHE_KEY = 'shapeat-coach-brand';
 
-  try {                                            // מטמון: מיתוג מיידי, בלי המתנה לרשת
+  try {                                          // מטמון: מיתוג מיידי, בלי המתנה לרשת
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     if (cached && cached.slug === slug) apply(cached);
   } catch (e) {}
@@ -151,16 +167,4 @@
     });
   }
 
-  // ── החלה מאוחרת, בלי רענון ──
-  // הצביעה קורית פעם אחת בטעינה, ולכן כל מי שמגלים עליה אחר כך נשארה בלי מיתוג
-  // עד שתרענן: מתאמנת שאישרה הסכמה מלינק בלי ?coach=, או מי שכבר מקושרת
-  // בדאטהבייס אבל הדפדפן הזה לא יודע. supabase-client קורא לזה כשהוא מגלה מאמן/ת.
-  window.shapeatApplyCoach = function (c) {
-    if (!c || !c.slug || !SLUG_RE.test(c.slug)) return;
-    try {
-      localStorage.setItem(KEY, c.slug);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(c));
-    } catch (e) {}
-    apply(c);
-  };
 })();
