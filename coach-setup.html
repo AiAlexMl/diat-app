@@ -44,10 +44,19 @@
   .slug-row .pre{font-size:14px;color:var(--text-tert);white-space:nowrap;flex-shrink:0}
   .slug-row .fld{margin-bottom:0;text-align:left;min-width:0}
 
-  .color-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-  .color-row input[type=color]{width:52px;height:42px;border:1.5px solid var(--border);
-    border-radius:12px;background:#fff;padding:3px;cursor:pointer;flex-shrink:0}
-  .color-row span{font-size:13.5px;color:var(--text-tert)}
+  /* לוח צבעים סגור, לא בורר חופשי: כל צבע כאן עומד ב-4.5:1 מול טקסט לבן ולכן
+     מוצג בדיוק כפי שנבחר. בורר חופשי היה מאפשר לבחור צהוב בהיר, ואז סף
+     הניגודיות באפליקציה היה מכהה אותו לחרדל-חום. לא מציעים מה שלא ניתן לקבל. */
+  .swatches{display:flex;flex-wrap:wrap;gap:9px;margin:0 2px 8px}
+  .sw{position:relative;width:44px;height:44px}   /* מינימום אזור מגע, כמו שאר הכפתורים */
+  .sw input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}
+  .sw span{display:block;width:100%;height:100%;border-radius:12px;
+    box-shadow:0 0 0 1.5px var(--border);transition:box-shadow .12s,transform .12s}
+  .sw input:checked + span{box-shadow:0 0 0 2.5px #fff,0 0 0 5px currentColor;transform:scale(1.06)}
+  .sw input:focus-visible + span{box-shadow:0 0 0 2.5px #fff,0 0 0 5px var(--text)}
+  .sw input:checked + span::after{content:"✓";position:absolute;inset:0;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800}
+  .color-note{font-size:13.5px;color:var(--text-tert);margin:0 2px 14px}
 
   .ack{display:flex;align-items:flex-start;gap:10px;background:#f7f8fd;border:1px solid var(--border);
     border-radius:14px;padding:14px 15px;margin:6px 0 16px;cursor:pointer}
@@ -122,11 +131,23 @@
       <input class="fld" id="f-mail" type="email" name="email" required
              placeholder="לעדכון כשהלינק מוכן" aria-label="כתובת מייל">
 
-      <label class="lbl">צבע המותג</label>
-      <div class="color-row">
-        <input type="color" id="f-color" name="Brand Color" value="#4f46e5" aria-label="צבע המותג">
-        <span>אם אין לך צבע מוגדר, אפשר להשאיר. יש לוגו? שלח/י לי אותו בהודעה ואשבץ.</span>
+      <label class="lbl" id="color-lbl">צבע המותג</label>
+      <div class="swatches" role="radiogroup" aria-labelledby="color-lbl">
+        <label class="sw" style="color:#15803d"><input type="radio" name="Brand Color" value="#15803d" aria-label="ירוק"><span style="background:#15803d"></span></label>
+        <label class="sw" style="color:#047857"><input type="radio" name="Brand Color" value="#047857" aria-label="ירוק אזמרגד"><span style="background:#047857"></span></label>
+        <label class="sw" style="color:#0f766e"><input type="radio" name="Brand Color" value="#0f766e" aria-label="טורקיז"><span style="background:#0f766e"></span></label>
+        <label class="sw" style="color:#0369a1"><input type="radio" name="Brand Color" value="#0369a1" aria-label="תכלת עמוק"><span style="background:#0369a1"></span></label>
+        <label class="sw" style="color:#2563eb"><input type="radio" name="Brand Color" value="#2563eb" aria-label="כחול"><span style="background:#2563eb"></span></label>
+        <label class="sw" style="color:#4f46e5"><input type="radio" name="Brand Color" value="#4f46e5" aria-label="אינדיגו" checked><span style="background:#4f46e5"></span></label>
+        <label class="sw" style="color:#7c3aed"><input type="radio" name="Brand Color" value="#7c3aed" aria-label="סגול"><span style="background:#7c3aed"></span></label>
+        <label class="sw" style="color:#a21caf"><input type="radio" name="Brand Color" value="#a21caf" aria-label="פוקסיה"><span style="background:#a21caf"></span></label>
+        <label class="sw" style="color:#be185d"><input type="radio" name="Brand Color" value="#be185d" aria-label="ורוד עמוק"><span style="background:#be185d"></span></label>
+        <label class="sw" style="color:#dc2626"><input type="radio" name="Brand Color" value="#dc2626" aria-label="אדום"><span style="background:#dc2626"></span></label>
+        <label class="sw" style="color:#c2410c"><input type="radio" name="Brand Color" value="#c2410c" aria-label="כתום"><span style="background:#c2410c"></span></label>
+        <label class="sw" style="color:#334155" ><input type="radio" name="Brand Color" value="#334155" aria-label="אפור פחם"><span style="background:#334155"></span></label>
       </div>
+      <p class="color-note">אלה הצבעים שהאפליקציה מציגה במדויק. יש לך צבע מותג מדויק או לוגו?
+        שלח/י לי אותם בהודעה ואשבץ.</p>
 
       <label class="ack">
         <input type="checkbox" name="Acknowledgment" value="V" required>
