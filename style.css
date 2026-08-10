@@ -114,6 +114,14 @@ body {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
+/* שם מאמן ארוך — "ShapEat" הוא 7 תווים, שם עסק הוא לא. בלי min-width:0 פריט
+   flex לא מתכווץ מתחת לרוחב התוכן שלו, ולכן השם גלש מחוץ למסך במקום לרדת שורה.
+   ה-clamp מקטין את הגופן לפי רוחב המסך כדי שהשם יישאר שלם ובשורה אחת בטלפון,
+   והגלישה נשארת כרשת ביטחון לשמות ארוכים במיוחד. חל רק על עמוד ממותג. */
+.coach-branded .app-logo   { max-width: 100%; }
+.coach-branded .logo-stack { min-width: 0; }
+.coach-branded .logo-text  { font-size: clamp(17px, 5.4vw, 26px); overflow-wrap: anywhere; }
+.coach-branded .logo-tag   { overflow-wrap: anywhere; }
 .coach-powered {
   font-size: 12px; font-weight: 500;
   color: #8b90a3;                 /* כמו קישורי ה-footer */
