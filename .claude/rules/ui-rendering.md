@@ -69,6 +69,19 @@ Renders in order:
 - **"התחל מחדש (איפוס)"** (`.reset-link`) → `resetApp()`: clears `S.liked`, `S.avoided`, `S.diet`, `S.allergy`; `S.goal`→`'maintain'`, `S.time`→`null`, `S.noTrain`→`false`; resets all chip/toggle/time-card UI, count displays, noTrain button text; clears `localStorage['dietai-state']`; then `goTo(0)`. **Does not touch favorites** (saved snapshots survive reset, by design).
 - **Favorites (♥ heart)** — `toggleFavoriteToday()` is a **true toggle** keyed by `buildId`: displayed build saved → `window.removeFavorite` + "הוסר מהמועדפים" toast with a "ביטול" undo action (undo re-saves from the live `DAY`); not saved → `window.saveFavorite()`. `saveFavorite()` itself stays **idempotent save-or-update keyed by `buildId`** (re-hearting the same build updates it in place keeping its `fav_id`; a **different** build on the same date creates a new favorite, so multiple menus per date are kept — the account list distinguishes same-date favorites by save time; the login-intent flow calls it directly, so it must never toggle) and is **silent** — the save toast ("נשמר/עודכן במועדפים ✓" + "צפייה" action) comes only from the supabase-client wrapper. Snapshots in `localStorage['shapeat-favorites']` (cap 30). The heart is an inline SVG button (`aria-pressed`; CSS fills it rose + `heart-pop` animation on `.on`, `prefers-reduced-motion` aware). `loadDay` backfills a missing `buildId` (pre-feature days) and persists it immediately — otherwise the heart could never light. Cloud mirror (table `favorites`) via wrappers in supabase-client.js; `closeAccountModal` re-runs `updateFavHeart()` so in-modal removals reflect on the menu screen.
 
+## Restoring a saved menu (`restoreFavorite`, ui.js — 11/08/2026)
+
+A favorite was read-only: you could look at it but not tick meals or edit it. `restoreFavorite(payload)` makes it **today's live day**, reusing `loadDay`'s midnight transform (reset `eaten`, drop `treat`/`added`/`removed` meals, clear `edited`, new `buildId`, `date = todayStr()`).
+
+- **Favorites only, never day history.** The heart is a statement of intent ("I want this again"); history is a record of what happened, including bad days. A day worth repeating gets hearted.
+- **The menu comes back unchanged.** No rebalancing: balancing would rebuild the very thing the user asked to restore, and "↻ תפריט נוסף" already exists for a fresh balanced menu. Hence **no action button** on the banner.
+- **`target`/`fibG` are today's; `gLabel`/`tLabel` stay the menu's.** The header describes what the menu *is*; the summary measures it against what's relevant *now*.
+- **One dialog, composed of what applies** (marks lost / edits lost / target gap), same pattern as `confirmRebuild` — nothing at stake ⇒ no dialog at all.
+- **Quiet `warn.menu` line when the gap is >10%**, no action. Needed because the summary card shows calories with **no** calorie target (only the fibre row shows a ratio), so without it the gap is invisible once the dialog closes.
+- **`buildBlockText()` gate runs first** — restore must not be a back door around the BMI hard-stop that blocks building.
+- `checkDayLevel()` fires only if the restored menu is below the health floor (possible only for a hand-edited favorite).
+- Row helpers `favCalories()` / `favFitsTarget()` (±10% of `S.target`) also drive the favorites list: fitting menus sort first and carry a "מתאים ליעד היום" tag. **Fit is judged on the number, not the goal label** — two cut menus from different weights are different targets.
+
 ## Persistence & Safety helpers (ui.js)
 
 - `saveState()` / `loadState()` — localStorage persistence of all user inputs/selections (see `architecture.md`). Every mutator calls `saveState()`.

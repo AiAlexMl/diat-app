@@ -155,6 +155,92 @@ function clearDay() {
 }
 
 // ══════════════════════════════════════════
+//  שחזור תפריט שמור ליום הנוכחי (11/08/2026)
+//  תפריט שמור היה עד היום לקריאה בלבד: אי אפשר היה לסמן בו "אכלתי" ולא לערוך
+//  אותו. השחזור מחזיר אותו להיות היום הפעיל, **כפי שהוא** — בלי איזון ובלי
+//  בנייה מחדש. מי שרוצה תפריט מאוזן ליעד הנוכחי לוחצת "↻ תפריט נוסף".
+// ══════════════════════════════════════════
+
+// קלוריות של תפריט שמור, מהארוחות שיישארו אחרי השחזור (בלי פינוקים ובלי מוסרות)
+function favCalories(payload) {
+  if (!payload || !payload.meals) return 0;
+  return payload.meals
+    .filter(m => m.type !== 'treat' && !m.added && !m.removed)
+    .reduce((s, m) => s + (m.totCal || 0), 0);
+}
+
+// "מתאים ליעד היום" = בטווח 10% מהיעד הנוכחי. הבדיקה על **המספר** ולא על תווית
+// המטרה: שני תפריטי חיטוב ממשקלים שונים הם שני יעדים, ותפריט שמירה ישן יכול
+// לשבת בול על יעד חיטוב נוכחי.
+function favFitsTarget(payload) {
+  if (!S.target) return false;
+  const cal = favCalories(payload);
+  return cal > 0 && Math.abs(cal - S.target) / S.target <= 0.10;
+}
+
+function restoreFavorite(payload) {
+  if (!payload || !payload.meals || !payload.meals.length) return false;
+  updateMacroDisplay();                      // מרענן את S.target/fibG/carbWarning מהפרטים הנוכחיים
+  if (!S.target) { alert('יש למלא פרטים אישיים'); goTo(0); return false; }
+
+  // אותו hard-stop כמו בבנייה: אם השילוב מטרה×BMI מזיק, אנחנו מסרבים לייצר יום.
+  // בלי זה השחזור היה דלת אחורית סביב שער בטיחות. (renderMenu → renderBuildBlock)
+  const block = buildBlockText();
+  if (block) { renderBuildBlock(block); goTo(4); return false; }
+
+  const cal = favCalories(payload);
+  const parts = [];
+  if (DAY && DAY.eaten && DAY.eaten.some(Boolean)) parts.push('· הסימונים של היום יתאפסו');
+  if (DAY && DAY.meals && DAY.meals.some(m => m.edited)) parts.push('· הארוחות שערכת ידנית יימחקו');
+  if (Math.abs(cal - S.target) / S.target > 0.10) {
+    const was = payload.gLabel ? ' למטרת ' + payload.gLabel : '';
+    parts.push(`· התפריט נבנה${was}, על ${Math.round(cal).toLocaleString()} קק"ל. ` +
+               `היעד שלך היום הוא ${S.target.toLocaleString()} קק"ל.`);
+  }
+  // דיאלוג אחד בלבד, ורק ממה שבאמת רלוונטי. אין מה להפסיד והיעד תואם ⇒ בלי שאלה,
+  // בדיוק כמו confirmRebuild.
+  if (parts.length && !confirm('להחליף את התפריט של היום?\n\n' + parts.join('\n'))) return false;
+
+  const day = deserializeDay(payload);
+  // אותה טרנספורמציה שרצה כל חצות ב-loadDay: היום הזה הוא יום חדש לכל דבר.
+  day.date = todayStr();
+  day.buildId = crypto.randomUUID();         // זהות חדשה — הלב מתחיל ריק, ואין כפילות במועדפים
+  day.meals = day.meals.filter(m => m.type !== 'treat' && !m.added && !m.removed);
+  day.meals.forEach(m => { m.edited = false; });
+  day.eaten = day.meals.map(() => false);
+  day.note = null;
+  day.noteAction = null;
+  // היעד הוא של **היום**, התוויות הן של **התפריט**. זו לא אי-עקביות: הכותרת מתארת
+  // מה התפריט הזה, וכרטיס הסיכום מודד אותו מול מה שרלוונטי לה עכשיו.
+  day.target = S.target;
+  day.fibG = S.fibG;
+  // שורה שקטה כשהיעד לא תואם, **בלי כפתור פעולה**: איזון היה בונה מחדש בדיוק את
+  // מה שהיא ביקשה לשחזר. היא נשארת כי כרטיס הסיכום מציג קלוריות בלי היעד
+  // (רק שורת הסיבים מציגה יחס), ולכן בלעדיה הפער אינו גלוי בשום מקום במסך —
+  // והדיאלוג נעלם ברגע שלחצה. (נמדד 11/08/2026)
+  const gap = Math.abs(cal - S.target) / S.target > 0.10
+    ? `התפריט הזה נבנה${payload.gLabel ? ' למטרת ' + payload.gLabel : ''}, על ` +
+      `${Math.round(cal).toLocaleString()} קק"ל. היעד שלך היום הוא ${S.target.toLocaleString()} קק"ל.`
+    : null;
+  day.warn = { bmi: bmiWarnText(), train: trainWarnText(), carb: S.carbWarning, menu: gap,
+               calFloor: S.calFloorWarning,
+               kosherSep: (payload.warn && payload.warn.kosherSep) || null };
+  day.warnAction = null;
+  day.tips = dietTips();
+
+  DAY = day;
+  editingMeals.clear();
+  S.treats = [];                             // הפינוקים ירדו עם הסינון למעלה
+  // רצפת הקלוריות הבריאה בלבד. תפריט שנבנה ע"י buildMenu תמיד מעליה, אבל מועדף
+  // שנערך ידנית לפני השמירה יכול לשבת מתחתיה, וזה המקרה היחיד שכן מצדיק התערבות.
+  const floor = S.gender === 'female' ? 1200 : 1500;
+  if (cal < floor) checkDayLevel();
+  saveDay();
+  renderDay();
+  return true;
+}
+
+// ══════════════════════════════════════════
 //  מועדפים — snapshot של תפריט יום ("לב"). מקומי-קודם; הענן מתמזג דרך supabase-client.
 //  בכוונה resetApp/clearDay לא נוגעים כאן — תפריט ששמרת שורד איפוס.
 // ══════════════════════════════════════════

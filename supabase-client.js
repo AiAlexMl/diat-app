@@ -952,14 +952,39 @@
         showToastSafe('הוסר מהמועדפים');
         renderFavs();
       };
+      row.classList.add('fav-row');
       const d = document.createElement('span');
       d.className = 'row-date';
-      const t = timeLabel(f.saved_at);
-      d.textContent = dateLabel(f.date) + (t ? ' · ' + t : '');
+      // השעה ירדה (11/08/2026): היא הבדילה רק בין שתי שמירות באותו יום, ומטרה
+      // וקלוריות מבדילות טוב יותר. שורה צרה בטלפון סובלת מכל פריט מיותר.
+      d.textContent = dateLabel(f.date);
       const meta1 = document.createElement('span');
       meta1.className = 'row-meta';
-      meta1.textContent = dayStats(f.payload).cal.toLocaleString() + ' קק"ל';
+      const gl = f.payload && f.payload.gLabel;
+      meta1.textContent = Math.round(favCalories(f.payload)).toLocaleString() + ' קק"ל' + (gl ? ' · ' + gl : '');
       row.append(del, d, meta1);
+
+      if (favFitsTarget(f.payload)) {
+        const fit = document.createElement('span');
+        fit.className = 'fav-fit';
+        fit.textContent = 'מתאים ליעד היום';
+        row.appendChild(fit);
+      }
+
+      // שחזור: מחזיר את התפריט להיות היום הפעיל, כדי שאפשר יהיה לסמן ולערוך בו.
+      // stopPropagation כי לחיצה על השורה עצמה פותחת תצוגה לקריאה בלבד.
+      const back = document.createElement('button');
+      back.className = 'row-restore';
+      back.textContent = '↩ החזר לתפריט';
+      back.title = 'להפוך את התפריט הזה לתפריט של היום';
+      back.onclick = e => {
+        e.stopPropagation();
+        let ok = false;
+        try { ok = window.restoreFavorite(f.payload); } catch (err) {}
+        if (ok) { closeAccountModal(); showToastSafe('התפריט הוחזר ליום ✓'); }
+      };
+      row.appendChild(back);
+
       row.onclick = () => showRoDay(f.payload, 'תפריט שמור · ' + dateLabel(f.date));
       return row;
     }
@@ -969,7 +994,11 @@
       let favs = [];
       try { favs = listFavorites(); } catch (e) {}
       if (!favs.length) { list.appendChild(emptyMsg('עוד אין תפריטים שמורים — לב ♡ במסך התפריט שומר אותו לכאן')); return; }
-      favs.forEach(f => list.appendChild(favRow(f)));
+      // המתאימים ליעד קודם. זו ההגנה האמיתית מפני שחזור של תפריט לא מתאים:
+      // הבחירה הנכונה היא הראשונה ומסומנת, ולכן אין צורך לחסום את השאר.
+      let fit = [], rest = [];
+      favs.forEach(f => { (favFitsTarget(f.payload) ? fit : rest).push(f); });
+      fit.concat(rest).forEach(f => list.appendChild(favRow(f)));
     }
 
     async function renderDays() {
