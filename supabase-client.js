@@ -626,6 +626,14 @@
       const coach = !e1 && data && data[0];
       if (!coach) return false;
 
+      // ⚠️ coach_links.trainee_id מפנה ל-profiles במפתח זר, ושורת profiles נוצרת
+      // רק בדחיפה הראשונה. firstMerge דוחף אותה בכל התחברות, אבל זה מרוץ ולא
+      // ערובה: מתאמנת חדשה שמאשרת לפני שהדחיפה חזרה מהרשת הייתה מקבלת הפרת FK
+      // ו"החיבור נכשל" בלי שום הסבר — ודווקא ברגע היקר ביותר, ההצטרפות הראשונה.
+      // upsert אידמפוטנטי תחת ה-RLS הקיים (שורה שלך בלבד) מסיר את התלות בתזמון.
+      const { error: e0 } = await sb.from('profiles').upsert({ id: session.user.id });
+      if (e0) return false;
+
       await sb.from('coach_links').update({ status: 'revoked' })
         .eq('trainee_id', session.user.id).eq('status', 'active');
 
