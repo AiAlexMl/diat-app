@@ -964,7 +964,7 @@ function dayHtml(day, opts) {
   // תווית אימון מוצגת רק כשהיא נושאת מידע; "ללא אימון" נשאר כנתון (תנאי הפינוקים) אך לא מוצג — כדי לא להעמיס ליד הלב
   const showSub = day.tLabel && day.tLabel !== 'ללא אימון';
   let html = `<div class="menu-header">
-    <h1 class="menu-title">${opts && opts.title ? esc(opts.title) : `התפריט שלך — ${esc(day.gLabel || '')}`}</h1>
+    <h1 class="menu-title">${opts && opts.title ? esc(opts.title) : `התפריט שלך · ${esc(day.gLabel || '')}`}</h1>
     ${showSub ? `<div class="menu-sub">${esc(day.tLabel)}</div>` : ''}
     ${ro ? '' : `<button class="fav-heart" id="fav-heart" onclick="toggleFavoriteToday()" aria-pressed="false" aria-label="שמירת התפריט למועדפים" title="שמור למועדפים"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></button>`}
   </div>`;
@@ -1003,17 +1003,10 @@ function dayHtml(day, opts) {
     </div>`;
   }
 
-  // אזהרת אי-התאמה: לא ניתן לעמוד ביעד הקלורי עם ההעדפות הנוכחיות
-  if (day.warn.menu) {
-    html += `<div class="bmi-warning info-warning">
-      <span class="bmi-warning-icon">ℹ️</span>
-      <span>${esc(day.warn.menu)}` +
-      // כפתור על האזהרה עצמה, לא רק על ההערה: האזהרה היא המקום שבו המשתמשת
-      // מבינה שיש בעיה, ושם צריכה להיות גם הדרך לתקן אותה.
-      (!ro && day.warnAction ? ` <button class="note-action" onclick="rebalanceToTarget()">${esc(day.warnAction)}</button>` : '') +
-      `</span>
-    </div>`;
-  }
+  // ⚠️ `day.warn.menu` **אינה מוצגת כאן** אלא למטה, ליד הסיכום. כל שאר האזהרות
+  // נקבעות בזמן הבנייה, ואז המשתמש ממילא בראש העמוד. זו היחידה שנדלקת *תוך כדי
+  // עריכה*, ואז הוא נמצא באמצע רשימת הארוחות ולא רואה את ראש העמוד בכלל —
+  // כלומר האזהרה החשובה ביותר ישבה במקום הכי פחות נראה. (12/08/2026)
 
   // הערת כשרות: הפרדת 6 שעות בשר/חלב (מוצג רק בכשר+אוכל-כול, כשיש ארוחה שנחסמה לחלב)
   if (day.warn.kosherSep) {
@@ -1058,7 +1051,7 @@ function dayHtml(day, opts) {
       </div>`;
     // למתאמנים: עדיף להרחיק את הפינוק מחלון האימון (תגי לפני/אחרי אימון שמורים לארוחות עצמן)
     if (m.type === 'treat' && m.totCal > 0 && day.tLabel && day.tLabel !== 'ללא אימון') {
-      html += `<div class="treat-tip">💡 טיפ: הארוחות שלפני ואחרי האימון בנויות בדיוק בשבילו (פחמימה + חלבון) — את הפינוק עדיף לשמור רחוק מחלון האימון, לא במקומן.</div>`;
+      html += `<div class="treat-tip">💡 טיפ: הארוחות שלפני ואחרי האימון בנויות בדיוק בשבילו (פחמימה + חלבון), אז את הפינוק עדיף לשמור רחוק מחלון האימון ולא במקומן.</div>`;
     }
 
     if (m.items.length === 0) {
@@ -1122,6 +1115,19 @@ function dayHtml(day, opts) {
   // יושבת **צמוד לסיכום ולא בראש העמוד** (12/08/2026): מאז שהעריכה מפסיקה לקפוץ
   // למעלה, המשתמשת נשארת ליד הארוחה שערכה והודעה בראש היא בלתי נראית בלי גלילה
   // יזומה. וגם לגופו של עניין — כל ההודעות מדברות על מספרי היום, וזה מקומם.
+  // אזהרת רמת היום (checkDayLevel) — נדלקת תוך כדי עריכה, ולכן היא כאן ולא בראש
+  // העמוד, צמודה למספרים שהיא מדברת עליהם.
+  if (day.warn.menu) {
+    html += `<div class="bmi-warning info-warning">
+      <span class="bmi-warning-icon">ℹ️</span>
+      <span>${esc(day.warn.menu)}` +
+      // הכפתור על האזהרה עצמה: זה המקום שבו המשתמש מבין שיש בעיה, ושם צריכה
+      // להיות גם הדרך לתקן אותה.
+      (!ro && day.warnAction ? ` <button class="note-action" onclick="rebalanceToTarget()">${esc(day.warnAction)}</button>` : '') +
+      `</span>
+    </div>`;
+  }
+
   if (day.note) {
     html += `<div class="day-note">${esc(day.note)}` +
       (!ro && day.noteAction ? ` <button class="note-action" onclick="${day.noteAction.fn}(${day.noteAction.mi})">${esc(day.noteAction.label)}</button>` : '') +
@@ -1324,7 +1330,7 @@ function treatBuildNote(items) {
   const tCal = items.reduce((s, it) => s + it.cal, 0);
   if (tCal === 0) return '🥤 על חשבון הבית: בלי קלוריות, בלי השפעה על התפריט. תיהנה!';
   const name = items.length === 1 ? items[0].f.name : `${items.length} פינוקים`;
-  return `התפריט נבנה סביב הפינוק שביקשת ✓ — ${name} (${tCal} קק"ל) הוקצה מתוך היעד היומי, ושאר הארוחות הותאמו בהתאם.`;
+  return `התפריט נבנה סביב הפינוק שביקשת ✓. ${name} (${tCal} קק"ל) הוקצה מתוך היעד היומי, ושאר הארוחות הותאמו בהתאם.`;
 }
 
 // הודעת ה-rebalance: שומרים את הודעות המדרגות (כמעט מלא / חצית), אחרת נוסח פינוק ייעודי
@@ -1440,7 +1446,7 @@ function altFoodRows(query) {
     `<div class="picker-item" role="button" tabindex="0" onclick="altFood(${f.id})">
       <span>${esc(f.name)} <small>(${f.unitG ? esc(f.unitLabel || f.unitG + 'g') : '100g'})</small></span>
       <span class="picker-cal">${Math.round(f.cal * (f.unitG || 100) / 100)} קק"ל</span>
-    </div>`).join('') || `<div class="picker-sub">לא נמצא — נסה את הטאב הידני</div>`;
+    </div>`).join('') || `<div class="picker-sub">לא נמצא, נסה את הטאב הידני</div>`;
 }
 
 function openAltPicker(mi) {
@@ -1452,7 +1458,7 @@ function openAltPicker(mi) {
   ov.id = 'alt-picker';
   ov.innerHTML = `<div class="picker-box">
     <div class="picker-title">מה אכלת בפועל? 🔄</div>
-    <div class="picker-sub">הוסף פריט אחד או יותר — ונבנה מחדש את המשך היום סביבם</div>
+    <div class="picker-sub">הוסף פריט אחד או יותר, ונבנה מחדש את המשך היום סביבם</div>
     <div class="picker-tabs">
       <button class="ptab active" onclick="altTab(this, 'alt-treats')">פינוקים</button>
       <button class="ptab" onclick="altTab(this, 'alt-foods')">מהמאגר</button>
