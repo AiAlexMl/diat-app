@@ -1237,10 +1237,24 @@ function shareDay() {
 // עבודה — רק נוצרה ציפייה. (הוכרע 12/08/2026)
 // ההודעה גם מלמדת את המוצא, ולא רק מזהירה: סימון "אכלתי" נועל ארוחה, ואז
 // הפינוק עובר ממילא למסלול אמצע-היום שמאזן רק את מה שנשאר פתוח.
+// ⚠️ **שואלים בשני המסלולים.** המנעולים מגנים על הארוחה שנאכלה או נערכה, אבל
+// כל השאר נבנה מחדש — גם במסלול ה"עדין". "שום דבר לא נזרק" נכון רק לגבי מה
+// שננעל, ולא לגבי הצהריים והערב שהמשתמש כבר קרא. (12/08/2026)
+// הסייג היחיד: אם אין אף ארוחה פתוחה, אין מה לבנות מחדש ואין על מה לשאול.
 function confirmTreatRebuild(lead) {
   if (!DAY) return true;
-  return confirm(`${lead} את התפריט מחדש, וכל הארוחות עשויות להשתנות.\n\n` +
-    `אם כבר אכלת ארוחה, אפשר לבטל, לסמן אותה "אכלתי ✓", והיא תישמר.\n\nלהמשיך?`);
+  const isOpen  = (m, i) => !m.removed && m.type !== 'treat' && !DAY.eaten[i] && !m.edited;
+  const open    = DAY.meals.filter(isOpen).length;
+  if (!open) return true;
+  const locked  = DAY.meals.filter((m, i) => !m.removed && m.type !== 'treat' && (DAY.eaten[i] || m.edited)).length;
+
+  const what = locked
+    ? (open === 1 ? 'ארוחה אחת שלא נגעת בה תיבנה מחדש. מה שסימנת או ערכת יישמר.'
+                  : `${open} ארוחות שלא נגעת בהן ייבנו מחדש. מה שסימנת או ערכת יישמר.`)
+    : 'כל הארוחות ייבנו מחדש.';
+  // הרמז מוצג רק כשאין עדיין שום מנעול, אחרת הוא מיותר: כבר יש לו מנעולים
+  const hint = locked ? '' : '\n\nאם כבר אכלת ארוחה, אפשר לבטל, לסמן אותה "אכלתי ✓", והיא תישמר.';
+  return confirm(`${lead} תעדכן את היום.\n\n${what}${hint}\n\nלהמשיך?`);
 }
 
 function confirmRebuild() {
@@ -1335,6 +1349,7 @@ function chooseTreat(idOrItem) {
   // בבנייה מלאה. הוא תמיד עובר במסלול אמצע-היום: מתווסף לכרטיס וההמשך מתאזן סביבו.
   const hasManualWork = DAY && (DAY.eaten.some(Boolean) || DAY.meals.some(m => m.edited));
   if (manual || hasManualWork) {
+    if (!confirmTreatRebuild('הוספת פינוק')) return;
     if (!manual) S.treats.push(idOrItem);
     const it = manual ? idOrItem : mkItem(tf, tf.unitG);
     let ti = DAY.meals.findIndex(m => m.type === 'treat' && !m.removed);
@@ -1360,7 +1375,7 @@ function chooseTreat(idOrItem) {
 
   // אין סימונים ואין עריכות ⇒ בנייה מלאה סביב הפינוקים, שהיא גם המדויקת ביותר
   // (התקציב משוריין *לפני* הבנייה). אבל היא מחליפה את כל היום, ולכן שואלים.
-  if (!confirmTreatRebuild('הוספת הפינוק תבנה')) return;
+  if (!confirmTreatRebuild('הוספת פינוק')) return;
   S.treats.push(idOrItem);
   renderMenu();
   dayFigureToast('הפינוק נוסף.');
@@ -1372,6 +1387,7 @@ function removeTreat() {
   // באמצע יום: מסירים את כרטיס הפינוק (אם טרם נאכל) ומעדכנים את ההמשך.
   // גם כאן "אמצע יום" כולל עריכה ידנית, לא רק סימון (ראו chooseTreat).
   if (DAY && (DAY.eaten.some(Boolean) || DAY.meals.some(m => m.edited)) && ti >= 0 && !DAY.eaten[ti]) {
+    if (!confirmTreatRebuild('הסרת פינוק')) return;
     DAY.meals[ti].removed = true;
     DAY.meals[ti].items = [];
     recalcMeal(DAY.meals[ti]);
@@ -1388,7 +1404,7 @@ function removeTreat() {
   // גם הסרה ביום נקי בונה הכל מחדש. confirmRebuild שותק בלי סימונים, ולכן
   // אותה שאלה, אחרת ההסרה מחליפה תפריט שלם בשקט.
   if (!confirmRebuild()) return;
-  if (!confirmTreatRebuild('הסרת הפינוק תבנה')) return;
+  if (!confirmTreatRebuild('הסרת פינוק')) return;
   S.treats = [];
   renderMenu();
   dayFigureToast('הפינוק הוסר.');
@@ -1399,6 +1415,7 @@ function removeTreatItem(idx) {
   if (!DAY) return;
   const ti = DAY.meals.findIndex(m => m.type === 'treat' && !m.removed);
   if (ti < 0) return;
+  if (!confirmTreatRebuild('הסרת פינוק')) return;   // גם כאן rebalanceDay בונה מחדש כל ארוחה פתוחה
   const meal = DAY.meals[ti];
   meal.items.splice(idx, 1);
   if (S.treats) S.treats.splice(idx, 1);
