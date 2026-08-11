@@ -482,15 +482,41 @@ function removeItem(mi, ii) {
   if (!meal.items.length) meal.removed = true;
   recalcMeal(meal);
   if (meal.removed) {
-    DAY.note = 'הסרת את כל פריטי הארוחה — היא ירדה מהיום. שאר הארוחות לא השתנו.';
+    DAY.note = 'הסרת את כל פריטי הארוחה, והיא ירדה מהיום. שאר הארוחות לא השתנו.';
     DAY.noteAction = null;
   } else {
-    DAY.note = 'הסרת פריט שלא אכלת — הוא ירד מהתפריט ומהסיכום היומי. שאר הארוחות לא השתנו.';
+    DAY.note = 'הסרת פריט שלא אכלת. הוא ירד מהתפריט ומהסיכום היומי, ושאר הארוחות לא השתנו.';
     DAY.noteAction = { label: '⚖️ אזן את ההמשך', fn: 'balanceAfterRemoval', mi };
   }
   checkDayLevel();
+
+  // קלף אחד, לא שניים (12/08/2026). checkDayLevel מדליק אזהרה צהובה משלו עם
+  // כפתור "אזן לערכים המומלצים", ואז המסך הראה שני באנרים זה מעל זה עם שני
+  // כפתורים שנקראים אותו דבר. מקפלים את המספרים לתוך ההודעה ומורידים את הכפתור
+  // הכפול: "אזן את ההמשך" הוא ממילא הכלי הנכון כאן, כי הוא נועל את הארוחה
+  // שנערכה ויש לו סובלנות והחזרה לאחור.
+  // ⚠️ **רק את האזהרה הרכה.** נפילה מתחת לרצפה הקלורית הבריאה נשארת קלף נפרד
+  //    ובולט — זו בטיחות ולא סידור מסך.
+  const live = Math.round(DAY.meals.filter(m => !m.removed).reduce((s, m) => s + m.totCal, 0));
+  const soft = DAY.warn.menu && DAY.warn.menu.indexOf('אחרי העריכות') === 0;
+  const gapTxt = `היום עומד על כ-${live.toLocaleString()} קק"ל מול יעד של ${DAY.target.toLocaleString()}.`;
+  if (soft) {
+    DAY.note += ' ' + gapTxt;
+    DAY.warn.menu = null;
+    DAY.warnAction = null;
+  } else if (DAY.warn.menu && DAY.warnAction) {
+    // נפילה מתחת לרצפה הבריאה: האזהרה נשארת קלף נפרד ובולט, אבל **הכפתור שלה
+    // הוא היחיד**. קיפול הפוך, כי כאן הודעת הבריאות היא החשובה מהשתיים, ושני
+    // כפתורי "אזן" זה מעל זה גרועים במיוחד ברגע שבו צריך שיהיה ברור מה לעשות.
+    DAY.noteAction = null;
+  }
   saveDay();
   renderDay();
+
+  // ההודעה יושבת ליד הסיכום, והמשתמשת נשארה ליד הארוחה שערכה. ה-toast מביא
+  // אליה את הנתון שהיא לא יכולה לראות מהמקום שבו היא עומדת — ההשפעה על היום.
+  // בלי כפתור: איזון בונה ארוחות מחדש, וזו לא החלטה לסרגל שנעלם תוך 5 שניות.
+  try { showToast('הפריט הוסר. ' + gapTxt, 4000); } catch (e) {}
 }
 
 // "אזן את ההמשך": נועל את הארוחה הערוכה (במה שנשאר בה — המשתמש אכל את השאר) ובונה מחדש
@@ -994,13 +1020,6 @@ function dayHtml(day, opts) {
     </div>`;
   }
 
-  // הודעת היום (תיקון יום: "כמעט מלא" / "חצית את היעד") + פעולה אופציונלית (אזן אחרי הסרה)
-  if (day.note) {
-    html += `<div class="day-note">${esc(day.note)}` +
-      (!ro && day.noteAction ? ` <button class="note-action" onclick="${day.noteAction.fn}(${day.noteAction.mi})">${esc(day.noteAction.label)}</button>` : '') +
-      `</div>`;
-  }
-
   // הערה לאימון בוקר
   if (day.morningTip) {
     html += `<div class="tips-box" style="margin-bottom:10px">
@@ -1087,6 +1106,16 @@ function dayHtml(day, opts) {
     }
     html += `</div>`;
   });
+
+  // הודעת היום (תיקון יום: "כמעט מלא" / "חצית את היעד") + פעולה אופציונלית (אזן אחרי הסרה).
+  // יושבת **צמוד לסיכום ולא בראש העמוד** (12/08/2026): מאז שהעריכה מפסיקה לקפוץ
+  // למעלה, המשתמשת נשארת ליד הארוחה שערכה והודעה בראש היא בלתי נראית בלי גלילה
+  // יזומה. וגם לגופו של עניין — כל ההודעות מדברות על מספרי היום, וזה מקומם.
+  if (day.note) {
+    html += `<div class="day-note">${esc(day.note)}` +
+      (!ro && day.noteAction ? ` <button class="note-action" onclick="${day.noteAction.fn}(${day.noteAction.mi})">${esc(day.noteAction.label)}</button>` : '') +
+      `</div>`;
+  }
 
   html += `<div class="summary-card">
     <div class="summary-title">סיכום יומי</div>
