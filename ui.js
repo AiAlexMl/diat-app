@@ -1394,7 +1394,7 @@ function openTreatPicker() {
       <label><span>כמה קלוריות</span>
         <input id="treat-cal" class="picker-input" type="number" min="0" inputmode="numeric" placeholder="בערך"></label>
     </div>
-    <button class="btn-secondary" style="width:100%" onclick="chooseManualTreat()">➕ הוסף פינוק</button>
+    <button class="btn-primary" style="width:100%" onclick="chooseManualTreat()">➕ הוסף פינוק</button>
     <div id="treat-feedback" class="ai-feedback"></div>
     <button class="btn-secondary picker-cancel" onclick="closeTreatPicker()">ביטול</button>
   </div>`;
