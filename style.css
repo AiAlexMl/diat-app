@@ -132,6 +132,9 @@ body {
 .logo-stack .coach-powered { font-size: 10px; margin: 2px 0 0; }
 /* בעמוד ממותג אין גיוס מאמנים — ה-CTA של ShapEat מוסתר */
 .coach-branded .coach-cta { display: none; }
+/* וגם שורת השם העברי בפוטר: בעמוד ממותג כבר יש "מופעל ע\"י ShapEat", ואזכור שני
+   שלנו מיותר בדיוק במקום שאמור להיראות של המאמן/ת. ה-SEO ממילא מגיע מהעמוד הראשי. */
+.coach-branded .site-footer .brand-he { display: none; }
 /* לינק "מאמן/ה?" — שער ההמרה למאמנים: אזור מגע מלא בלי לשנות את המראה השקט */
 .coach-cta a { display: inline-block; padding: 14px 8px; margin: -14px -8px; }
 .coach-powered-logo {
