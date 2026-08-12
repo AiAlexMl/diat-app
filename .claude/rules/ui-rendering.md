@@ -84,6 +84,21 @@ A favorite was read-only: you could look at it but not tick meals or edit it. `r
 - `checkDayLevel()` fires only if the restored menu is below the health floor (possible only for a hand-edited favorite).
 - Row helpers `favCalories()` / `favFitsTarget()` (±10% of `S.target`) also drive the favorites list: fitting menus sort first and carry a "מתאים ליעד היום" tag. **Fit is judged on the number, not the goal label** — two cut menus from different weights are different targets.
 
+## "⚖️ אזן את הארוחה" (`balanceMeal`, ui.js — 13/08/2026)
+
+Two legitimate intents follow one removal: *"I don't want the tahini, this meal is enough"* and *"I didn't like that carb, fill it with something"*. The app doesn't guess — it offers both, at different levels:
+
+| appears | where | scope |
+|---|---|---|
+| meal was trimmed and lost ≥10% of its size (`trimGap`) | **on the meal card**, before "➕ הוסף פריט" | that meal only |
+| the day falls under target | the day-level warning above the summary | the rest of the day |
+
+- **On the card, not in the note.** The note holds one `mi`, so trimming lunch and then dinner left lunch unfixable — the action belongs to a meal, so it lives on the meal.
+- **Not on "🔄 אכלתי משהו אחר"**, which marks the meal eaten: offering to rebalance food already eaten is meaningless.
+- **Touches only that meal**, and the arithmetic works out on its own: removing X kcal and putting X back returns the day to target without disturbing meals the user has already arranged (the data-loss the `edited` lock was added to prevent).
+- One press is all you get; leftovers surface as the day being under target, which is what the day-level button is for.
+- `trimmed` / `trimOut` are serialised (they must survive a reload) and cleared on day rollover in `loadDay`.
+
 ## Android back button (`pushBack` / `popBack`, ui.js — 12/08/2026)
 
 Without this, pressing back with a modal open **left the app** instead of closing it. A real trainee tried to get from the account screen back to the menu and exited entirely; on a phone that reads as a crash.

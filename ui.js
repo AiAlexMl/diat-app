@@ -89,6 +89,8 @@ function serializeDay(day) {
     tips: day.tips || null, gLabel: day.gLabel, tLabel: day.tLabel, morningTip: day.morningTip,
     meals: day.meals.map(m => ({
       label: m.label, icon: m.icon, time: m.time, pct: m.pct, tag: m.tag, type: m.type, removed: m.removed || false, added: m.added || false, edited: m.edited || false,
+      // הגזימה נשמרת, אחרת רענון מעלים את "אזן את הארוחה" ואת רשימת ההחרגה
+      trimmed: m.trimmed || false, trimOut: m.trimOut || null,
       totCal: m.totCal, totP: m.totP, totC: m.totC, totF: m.totF, totFib: m.totFib,
       items: m.items.map(item),
     })),
@@ -133,7 +135,7 @@ function loadDay() {
       // לפי הדגל בלבד: גם buildMenu מוסיף ארוחות בשם "נשנוש נוסף" ליעד גבוה (בלי added) —
       // סינון לפי ה-label מחק אותן מהבסיס של מחר והשאיר יום חסר ~46% (נמדד 10/07/2026).
       day.meals = day.meals.filter(m => m.type !== 'treat' && !m.added && !m.removed);
-      day.meals.forEach(m => { m.edited = false; });   // מנעולי אתמול לא נגררים ליום חדש
+      day.meals.forEach(m => { m.edited = false; m.trimmed = false; m.trimOut = null; });   // מנעולי אתמול לא נגררים ליום חדש
       day.eaten = day.meals.map(() => false);
       day.note = null;
     }
@@ -522,8 +524,20 @@ function rebalanceToTarget() {
 function removeItem(mi, ii) {
   if (!DAY || !DAY.meals[mi]) return;
   const meal = DAY.meals[mi];
+  const gone = meal.items[ii];
   meal.items.splice(ii, 1);
   meal.edited = true;   // מנעול: איזון עתידי לא יבנה מחדש ארוחה שהמשתמשת קבעה
+  // ── רישום הגזימה (13/08/2026) ──
+  // `edited` לבדו לא הבחין בין "הסרתי פריט והארוחה חסרה" לבין "הצהרתי מה אכלתי
+  // והארוחה סגורה". שניהם ננעלו, ולכן אי אפשר היה להשלים ארוחה שקוצצה.
+  // trimOut שומר **מה** ירד (כדי שלא יחזור) ו**כמה** (כדי לדעת מה חסר).
+  if (gone) {
+    meal.trimmed = true;
+    meal.trimOut = (meal.trimOut || []).concat([{
+      id: (gone.f && gone.f.id) || 0, cal: gone.cal || 0, p: gone.p || 0,
+      tags: (gone.f && gone.f.tags) || [],
+    }]);
+  }
   if (!meal.items.length) meal.removed = true;
   recalcMeal(meal);
   if (meal.removed) {
@@ -573,6 +587,44 @@ function dayFigureToast(prefix) {
   try {
     showToast(`${prefix} היום עומד על כ-${live.toLocaleString()} קק"ל מול יעד של ${DAY.target.toLocaleString()}.`, 4000);
   } catch (e) {}
+}
+
+// כמה חסר לארוחה שנגזמה, ביחס לגודלה המקורי. מתחת ל-10% לא מציעים כלום:
+// מי שהסיר מלפפון מהסלט לא צריך כפתור, הארוחה עדיין בגודל שלה.
+function trimGap(m) {
+  if (!m || m.removed || !m.trimmed || !Array.isArray(m.trimOut) || !m.trimOut.length) return 0;
+  const gone = m.trimOut.reduce((s, t) => s + (t.cal || 0), 0);
+  const orig = (m.totCal || 0) + gone;
+  return orig > 0 && gone / orig >= 0.10 ? Math.round(gone) : 0;
+}
+
+// "⚖️ אזן את הארוחה" — משלים **רק** את הארוחה הזאת, בלי לגעת בשאר היום.
+// חשבונית זה מדויק: הסרנו X קלוריות, מחזירים X, והיום חוזר ליעד מעצמו.
+function balanceMeal(mi) {
+  if (!DAY || !DAY.meals[mi]) return;
+  const meal = DAY.meals[mi];
+  const before = Math.round(meal.totCal || 0);
+  // אותה מפת used של היום, כדי שההשלמה לא תכפיל מאכל שכבר מופיע במקום אחר.
+  // ⚠️ בדיוק אותה בנייה כמו ב-rebalanceDay: לקבוצת סלט אין `f` אלא `_comps`,
+  //    ו-use() נופל עליה. (נתפס בבדיקה 13/08/2026)
+  const used = new Map();
+  DAY.meals.forEach(m => {
+    if (m.removed) return;
+    m.items.forEach(it => {
+      if (it.isSaladGroup) (it._comps || []).forEach(c => c.f && used.set(c.f.id, (used.get(c.f.id) || 0) + c.g));
+      else if (it.f && it.f.id > 0) used.set(it.f.id, (used.get(it.f.id) || 0) + it.g);
+    });
+  });
+  const res = topUpMeal(meal, used, { usedCarbCats: new Set() });
+
+  DAY.note = res.added
+    ? `אזנו את ${meal.label}: ${Math.round(meal.totCal)} קק"ל במקום ${before}.`
+    : 'לא נמצאה השלמה שמתאימה לארוחה הזאת, אז השארנו אותה כמו שהיא.';
+  DAY.noteAction = null;
+  checkDayLevel();          // מה שלא נכנס יתבטא כיום מתחת ליעד, ושם יש כפתור רוחבי
+  saveDay();
+  renderDay();
+  dayFigureToast(res.added ? 'הארוחה אוזנה.' : 'לא נמצאה השלמה.');
 }
 
 // "אזן את ההמשך": נועל את הארוחה הערוכה (במה שנשאר בה — המשתמש אכל את השאר) ובונה מחדש
@@ -1148,6 +1200,7 @@ function dayHtml(day, opts) {
     </div>`;
     if (!ro) {
       html += `<div class="meal-actions">
+      ${m.type !== 'treat' && trimGap(m) ? `<button class="alt-btn" onclick="balanceMeal(${mi})">⚖️ אזן את הארוחה</button>` : ''}
       ${m.type !== 'treat' ? `<button class="alt-btn add-item-btn" onclick="openAddItemPicker(${mi})">➕ הוסף פריט</button>` : ''}
       ${m.type !== 'treat' ? `<button class="alt-btn" onclick="openAltPicker(${mi})">🔄 אכלתי משהו אחר</button>` : ''}
       <button class="eaten-btn${day.eaten[mi] ? ' on' : ''}" onclick="toggleEaten(${mi})">${day.eaten[mi] ? '✓ נאכלה' : 'אכלתי ✓'}</button>

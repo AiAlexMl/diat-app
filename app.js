@@ -696,6 +696,55 @@ function reUnit(it, count) {     // ירק עמילני לפי יחידות של
   setMacros(it, it.f, it.g);
 }
 
+// ══════════════════════════════════════════
+//  השלמת ארוחה שנגזמה (13/08/2026)
+//  הסרת פריט נעלה עד היום את הארוחה, ולכן האיזון לא יכול היה להשלים אותה והוסיף
+//  "נשנוש נוסף" בסוף היום במקום לתקן את הצהריים שקוצצו.
+//  כאן **בונים לתוך הארוחה הקיימת** ולא מחדש, בדיוק בדפוס של convertDemeatedMeal:
+//  הפול מסונן ב-tasteOk **מול הארוחה עצמה**, ולכן מה שנכנס חייב להסתדר עם מה שנשאר
+//  בצלחת. pick כבר אוכף allowed / used / variantBlocked, אז קבוצות הווריאנטים
+//  וגיוון היום מוגנים בלי קוד נוסף.
+//  ⚠️ המאכל שהוסר לא חוזר — זו כל הסיבה שהמשתמש הסיר אותו.
+// ══════════════════════════════════════════
+function topUpMeal(meal, used, ctx) {
+  if (!meal || !Array.isArray(meal.trimOut) || !meal.trimOut.length) return { added: 0, left: 0 };
+  used = used || new Map(); ctx = ctx || { usedCarbCats: new Set() };
+
+  const excl  = new Set(meal.trimOut.map(t => t.id).filter(id => id > 0));
+  let gapCal  = Math.round(meal.trimOut.reduce((s, t) => s + (t.cal || 0), 0));
+  const gapP  = Math.round(meal.trimOut.reduce((s, t) => s + (t.p || 0), 0));
+  // "אותה משפחה": מחליפים ממרח בממרח ופחמימה בפחמימה, ולא שניצל בבוקר. tasteOk
+  // חוסם מתוק מול מלוח, אבל לא "מנה חמה בתוך ארוחת בוקר" — הקרבה הזאת סוגרת את הפער.
+  const kinTags = new Set(meal.trimOut.flatMap(t => t.tags || []));
+
+  // ⚠️ **פריט שני חייב להיות ממשפחה אחרת.** בלי זה ההשלמה בחרה פעמיים מאותה
+  //    קבוצה והכניסה כוסמת *וגם* פסטה לאותה צלחת — מספרים נכונים, ארוחה לא הגיונית.
+  //    (נתפס בבדיקה 13/08/2026, וזה בדיוק הסיכון שבגללו מודדים קוהרנטיות ולא רק מאקרו.)
+  const takenTags = new Set();
+  let added = 0;
+  for (let k = 0; k < 2 && gapCal >= 60; k++) {
+    const base = ALL.filter(f => !excl.has(f.id) && tasteOk(f, meal) &&
+      !f.tags.some(t => takenTags.has(t)));
+    const kin  = kinTags.size ? base.filter(f => f.tags.some(t => kinTags.has(t))) : [];
+    // מנסים קודם מאותה משפחה כמו מה שהוסר (ממרח בממרח, עמילן בעמילן); אם אין, כל
+    // מה שעובר את שער הטעם. maxG הוא תקרת **גרמים**, לא קלוריות.
+    const it = pick(kin.length ? kin : base, used, gapCal, k === 0 ? gapP : 0, 350);
+    if (!it) break;
+    use(used, it);
+    (it.f.tags || []).forEach(t => takenTags.add(t));
+    meal.items.push(it);
+    gapCal -= it.cal;
+    added++;
+  }
+
+  recalcMeal(meal);
+  // לחיצה אחת, ומה שנכנס נכנס. מה שנשאר יתבטא כיום מתחת ליעד, ושם כבר יש
+  // אזהרה רוחבית עם כפתור — זו החלוקה שהוכרעה: המקומי לארוחה, הרוחבי ליום.
+  meal.trimOut = [];
+  meal.trimmed = false;
+  return { added, left: Math.max(0, gapCal) };
+}
+
 function recalcMeal(m) {
   m.totCal = m.items.reduce((s, x) => s + x.cal, 0);
   m.totP   = Math.round(m.items.reduce((s, x) => s + (x.p   || 0), 0) * 10) / 10;

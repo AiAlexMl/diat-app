@@ -179,6 +179,18 @@ Applied in **Stage 1b** and in **`convertDemeatedMeal`**'s anchor pool. The othe
 
 `tunaUsed(used)` gates all tuna pools: only one tuna type per menu, capped at one can (`maxDay:160`).
 
+## `topUpMeal()` — completing a trimmed meal (13/08/2026)
+
+Removing an item used to set `edited`, which **locks** the meal, so `rebalanceDay` could never complete it and instead bolted a "נשנוש נוסף" onto the end of the day. `removeItem` now also records `m.trimmed` and `m.trimOut` (`{id, cal, p, tags}` per removed item), and `topUpMeal(meal, used, ctx)` fills the gap.
+
+- **Builds into the existing meal, never from scratch** — same pattern as `convertDemeatedMeal`. The pool is filtered by `tasteOk(f, meal)`, so a candidate must sit with what is still on the plate; `pick()` already enforces `allowed` / `used` / `variantBlocked`, so variant groups and day-level variety come free.
+- **The removed food never returns** — that is the whole reason it was removed.
+- **Like replaces like**: candidates sharing a tag with what was removed are preferred (spread for spread, starch for starch), because `tasteOk` blocks sweet-vs-savoury but not "a hot dish inside breakfast".
+- **At most 2 items, and the second may not share a tag with the first.** Without that rule the fill picked twice from the same family and produced buckwheat *and* pasta on one plate: correct macros, incoherent meal.
+- Whatever doesn't fit is left. The day then sits under target and the existing day-level warning handles it; `topUpMeal` never touches another meal.
+
+**Measured (55 runs × 5 profiles incl. vegetarian / kosher / gluten-free):** 0 removed-food returns, 0 taste violations, 0 in-meal duplicates, 0 variant-group duplicates, 44/55 meals back to ≥90% of their original size. **Negative control** with `tasteOk` stubbed to `true` and the family rule removed: 1 taste violation + 3 same-family pairs in 26 runs, so the measurement has teeth (the 06/08 lesson).
+
 ## Variant groups (one per menu)
 
 `VARIANT_GROUPS = [[20,21],[15,16,17],[45,46,100]]`, enforced by `variantBlocked(f, used)` inside `pick()` **and in `slotFeasible`**: one cottage type (3%/5%), **one egg dish per menu** (M/L/XL are separate ids, so `used` alone wouldn't block a second omelet), and **one cracker type per menu** (rice-large / rice-small / corn — stops multi-cracker spam). `adjustEgg` additionally **respects a liked egg size** — if the user liked specific size(s), it only resizes within them. Together these also eliminate the old egg-maxDay micro-bug (two meals converging on the same egg id). The `LEANER` swap (20→21) is safe: replaces in place and checks `usedIds`. **`slotFeasible` checks `variantBlocked`** so a template is never selected when its only filler is variant-blocked (would otherwise leave an empty slot/meal).
