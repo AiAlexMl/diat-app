@@ -497,8 +497,10 @@
                                             // (⇒ להוריד מיתוג) לבין מי שרק הגיעה מלינק ממותג
   const JOIN_KEY = 'shapeat-join-intent';   // שורד את ה-redirect של OAuth/magic-link
   const JOIN_MS  = 30 * 60 * 1000;
-  const CONSENT_VERSION = 2;                // כל שינוי בנוסח למטה מחייב העלאת המספר הזה
+  const CONSENT_VERSION = 3;                // כל שינוי בנוסח למטה מחייב העלאת המספר הזה
                                             // v2 (08/08/2026): פירוט מפת 14 הימים במקום "אחוז הארוחות"
+                                            // v3 (12/08/2026): תיבת המשקל נוסחה כמשפט עצמאי ("אני מאשר/ת ש...")
+                                            //   במקום המשך של התיבה שמעליה
   let joinEl = null;
 
   function closeJoin() { if (!joinEl) return; joinEl.remove(); joinEl = null; popBack(); }
@@ -579,7 +581,13 @@
     c2.className = 'auth-consent';
     const cb2 = document.createElement('input'); cb2.type = 'checkbox';
     const t2 = document.createElement('span');
-    t2.textContent = 'גם מגמת המשקל שלי (עולה/יורד וכמה), בלי המשקל עצמו. אפשר גם בלי זה.';
+    // ⚠️ נוסח עצמאי במכוון (12/08/2026). קודם הוא התחיל ב"גם מגמת המשקל שלי...",
+    //    כלומר משפט שנשען על התיבה שמעליו. תיבת הסכמה נפרדת חייבת לעמוד בפני
+    //    עצמה, אחרת ההפרדה קיימת בממשק ולא בתוכן, ומי שקורא רק אותה לא יודע
+    //    למה בדיוק הוא מסכים.
+    t2.textContent = 'אני מאשר/ת ש' + coach.display_name +
+      ' יראו גם את מגמת המשקל שלי: את הכיוון ואת ההפרש בלבד, ולא את המשקל בק"ג. ' +
+      'אפשר להצטרף גם בלי לסמן את זה.';
     c2.append(cb2, t2);
 
     const go = document.createElement('button');
