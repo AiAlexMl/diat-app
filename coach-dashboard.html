@@ -357,12 +357,12 @@
       '<div class="empty">' +
         '<div style="font-weight:700;color:var(--text);margin-bottom:6px">הדשבורד שלך</div>' +
         (msg ? '<div style="margin-bottom:10px">' + esc(msg) + '</div>' : '') +
-        '<button class="ibtn" id="gin" style="margin-bottom:12px">התחברות עם Google</button>' +
-        '<div style="font-size:12px;margin-bottom:10px">או בקוד למייל</div>' +
+        // גוגל מאחורי קישור, כמו באפליקציה: בורר החשבונות של גוגל מציג את כתובת
+        // סופהבייס, וזה נקרא כניסיון התחזות. הקוד למייל נשאר כולו אצלנו.
         '<div class="invite-row" style="justify-content:center">' +
           '<input class="invite-url" id="mail" type="email" placeholder="כתובת אימייל" ' +
             'style="direction:ltr;text-align:left;max-width:230px">' +
-          '<button class="ibtn ghost" id="send">שלחו קוד</button>' +
+          '<button class="ibtn" id="send">שלחו קוד</button>' +
         '</div>' +
         '<div class="invite-row" id="codewrap" style="display:none;justify-content:center;margin-top:10px">' +
           '<input class="invite-url" id="code" inputmode="numeric" maxlength="6" placeholder="הקוד מהמייל" ' +
@@ -370,11 +370,19 @@
           '<button class="ibtn" id="verify">אישור</button>' +
         '</div>' +
         '<div id="lstat" style="font-size:12px;margin-top:10px;min-height:16px"></div>' +
+        '<button class="ibtn ghost" id="gshow" style="margin-top:12px;font-size:12px">התחברת בעבר עם Google?</button>' +
+        '<div id="gwrap" style="display:none;margin-top:10px">' +
+          '<button class="ibtn" id="gin">התחברות עם Google</button>' +
+        '</div>' +
       '</div>';
 
     var stat = document.getElementById('lstat');
     var mail = document.getElementById('mail');
 
+    document.getElementById('gshow').onclick = function () {
+      document.getElementById('gwrap').style.display = '';
+      this.style.display = 'none';
+    };
     document.getElementById('gin').onclick = function () {
       sb.auth.signInWithOAuth({ provider: 'google',
         options: { redirectTo: location.origin + location.pathname + location.search } });

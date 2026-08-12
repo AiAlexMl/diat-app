@@ -472,7 +472,26 @@
     x.setAttribute('aria-label', 'סגירה');
     x.onclick = closeLogin;
 
-    box.append(x, h, p, consent, gBtn, div, email, mBtn, codeWrap, status);
+    // ── גוגל יורד מהמסך הראשי (12/08/2026) ──
+    // בורר החשבונות של גוגל מציג את מארח ה-callback, שהוא כתובת סופהבייס
+    // (`kjlxgamalfzdjtjxfzun.supabase.co`). משתמש אמיתי דיווח שזה נראה כמו ניסיון
+    // לגנוב לו את חשבון גוגל, ומשפט הרגעה לא מבטל חשד — הוא רק מסביר אותו בדיעבד.
+    // הכתובת ניתנת לשינוי רק עם דומיין מותאם, שהוא פיצ'ר בתשלום.
+    // מסלול הקוד למייל נשאר כולו על shapeat.co.il, וממילא תוקן היום עבור נרשמים
+    // חדשים, ולכן הוא הראשי עכשיו.
+    // ⚠️ **לא מוחקים את גוגל**: מי שנרשם/ה דרכו בעבר חייב/ת דרך פנימה שאינה תלויה
+    //    בהנחה ש-OTP יעבוד על חשבון שנוצר ב-OAuth. לכן הוא מאחורי קישור שקט.
+    const gWrap = document.createElement('div');
+    gWrap.style.display = 'none';
+    gWrap.append(div, gBtn);
+
+    const gLink = document.createElement('button');
+    gLink.type = 'button';
+    gLink.className = 'auth-cancel';
+    gLink.textContent = 'התחברת בעבר עם Google?';
+    gLink.onclick = () => { gWrap.style.display = ''; gLink.style.display = 'none'; };
+
+    box.append(x, h, p, consent, email, mBtn, codeWrap, gLink, gWrap, status);
     authEl.appendChild(box);
     document.body.appendChild(authEl);
 
