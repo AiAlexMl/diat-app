@@ -84,6 +84,14 @@ A favorite was read-only: you could look at it but not tick meals or edit it. `r
 - `checkDayLevel()` fires only if the restored menu is below the health floor (possible only for a hand-edited favorite).
 - Row helpers `favCalories()` / `favFitsTarget()` (±10% of `S.target`) also drive the favorites list: fitting menus sort first and carry a "מתאים ליעד היום" tag. **Fit is judged on the number, not the goal label** — two cut menus from different weights are different targets.
 
+## Android back button (`pushBack` / `popBack`, ui.js — 12/08/2026)
+
+Without this, pressing back with a modal open **left the app** instead of closing it. A real trainee tried to get from the account screen back to the menu and exited entirely; on a phone that reads as a crash.
+
+- `pushBack(closeFn)` in every opener, `popBack()` at the end of every closer. Wired to: treat / alt / add-item pickers, image lightbox, login, consent (`openJoin`), account modal. The disclaimer is deliberately excluded (it's a gate). `showRoDay` is a sub-view with its own back button, so back closes the whole account modal.
+- **A stack, not a flag** — modals nest (account → saved-day view).
+- Two guards, and both are load-bearing: `expectPop` swallows the `popstate` that `popBack` itself triggers via `history.back()`, and `closingFromBack` stops a close that *came from* back from popping a second entry. Without the second one the stack silently drained one extra level per back press, so the next press exited the app with a modal still open (caught in testing, not in review).
+
 ## Persistence & Safety helpers (ui.js)
 
 - `saveState()` / `loadState()` — localStorage persistence of all user inputs/selections (see `architecture.md`). Every mutator calls `saveState()`.

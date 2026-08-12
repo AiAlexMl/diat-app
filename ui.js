@@ -318,6 +318,46 @@ function updateFavHeart() {
 // toast קטן לכל האפליקציה (משתמש ב-keyframes toast-pop הקיימים).
 // action אופציונלי = { label, onClick } → מוסיף כפתור פעולה (למשל "צפייה" שמוביל לשמורים)
 // ומאריך את משך התצוגה כדי שיהיה זמן ללחוץ.
+// ══════════════════════════════════════════
+//  כפתור "חזרה" של אנדרואיד (12/08/2026)
+//  בלי זה, לחיצה על "חזרה" כשמודאל פתוח **יוצאת מהאפליקציה** במקום לסגור אותו.
+//  משתמש אמיתי ניסה לחזור מהמסך של החשבון לתפריט ויצא לגמרי. בדפדפן נייד זו
+//  הציפייה הבסיסית ביותר, ואי-עמידה בה נקראת כקריסה.
+//
+//  מחסנית ולא דגל יחיד, כי יש מודאלים מקוננים (חשבון ← צפייה בתפריט שמור).
+//  expectPop סופר חזרות ש**אנחנו** יזמנו (סגירה ב-X מסירה גם את רשומת ההיסטוריה),
+//  אחרת אותה חזירה הייתה מפילה גם את המודאל שמתחת.
+// ══════════════════════════════════════════
+const backStack = [];
+let expectPop = 0;        // חזרות שאנחנו יזמנו, כדי לא לפרש אותן כלחיצת משתמש
+let closingFromBack = false;   // אנחנו כרגע *בתוך* סגירה שהגיעה מכפתור החזרה
+
+function pushBack(close) {
+  backStack.push(close);
+  try { history.pushState({ shapeatModal: backStack.length }, ''); } catch (e) {}
+}
+
+// נקרא מתוך פונקציית הסגירה עצמה (X / Escape / לחיצה על הרקע)
+function popBack() {
+  // ⚠️ כשהסגירה הגיעה מ-popstate, הרשומה כבר הוסרה. בלי השומר הזה אותה סגירה
+  //    הייתה מסירה מודאל **נוסף** מהמחסנית, והלחיצה הבאה על חזרה הייתה מוציאה
+  //    מהאפליקציה בזמן שמודאל עדיין פתוח.
+  if (closingFromBack) return;
+  if (!backStack.length) return;
+  backStack.pop();
+  expectPop++;
+  try { history.back(); } catch (e) { expectPop--; }
+}
+
+window.addEventListener('popstate', () => {
+  if (expectPop > 0) { expectPop--; return; }   // החזרה הזאת יזומה על ידינו
+  const close = backStack.pop();
+  if (!close) return;
+  closingFromBack = true;
+  try { close(); } catch (e) {}
+  closingFromBack = false;
+});
+
 function showToast(msg, ms, action) {
   document.querySelectorAll('.app-toast').forEach(t => t.remove());
   const t = document.createElement('div');
@@ -1277,6 +1317,7 @@ function confirmRebuild() {
 
 function openTreatPicker() {
   closeTreatPicker();
+  pushBack(closeTreatPicker);   // חזרה באנדרואיד סוגרת את הבורר, לא את האפליקציה
   const ov = document.createElement('div');
   ov.className = 'picker-overlay';
   ov.id = 'treat-picker';
@@ -1321,7 +1362,9 @@ function chooseManualTreat() {
 
 function closeTreatPicker() {
   const el = document.getElementById('treat-picker');
-  if (el) el.remove();
+  if (!el) return;
+  el.remove();
+  popBack();
 }
 
 // נוסח הערת הפינוק בבנייה: אפס-קלוריות = "על חשבון הבית"; אחרת ההסבר הרגיל (סכום הקלוריות לכמה פינוקים)
@@ -1451,6 +1494,7 @@ function altFoodRows(query) {
 
 function openAltPicker(mi) {
   closeAltPicker();
+  pushBack(closeAltPicker);
   altIdx = mi;
   altCart = [];
   const ov = document.createElement('div');
@@ -1500,9 +1544,11 @@ function altTab(btn, paneId) {
 
 function closeAltPicker() {
   const el = document.getElementById('alt-picker');
-  if (el) el.remove();
+  if (!el) return;
+  el.remove();
   altIdx = null;
   altCart = [];
+  popBack();
 }
 
 function renderAltCart() {
@@ -1592,6 +1638,7 @@ function aiSyncQty() {
 }
 function openAddItemPicker(mi) {
   closeAddItemPicker();
+  pushBack(closeAddItemPicker);
   addItemMi = mi;
   aiSelId = null;
   const ov = document.createElement('div');
@@ -1617,9 +1664,11 @@ function openAddItemPicker(mi) {
 }
 function closeAddItemPicker() {
   const el = document.getElementById('add-item-picker');
-  if (el) el.remove();
+  if (!el) return;
+  el.remove();
   addItemMi = null;
   aiSelId = null;
+  popBack();
 }
 function aiAddSelected() {
   if (!aiSelId) { aiFeedback('בחרו מאכל מהרשימה', true); return; }
@@ -1758,6 +1807,7 @@ function closeImgLightbox() {
   document.removeEventListener('keydown', _imgLbKey);
   if (_imgLbPrevFocus && _imgLbPrevFocus.focus) { try { _imgLbPrevFocus.focus(); } catch (e) {} }
   _imgLbPrevFocus = null;
+  popBack();
 }
 function openImgLightbox(src, alt) {
   if (!_imgLb) {
@@ -1776,6 +1826,7 @@ function openImgLightbox(src, alt) {
   _imgLb.style.display = 'flex';
   document.addEventListener('keydown', _imgLbKey);
   _imgLb.querySelector('.img-lightbox-close').focus();
+  pushBack(closeImgLightbox);
 }
 // מאזין מואצל אחד על document — תופס גם את מסך התפריט וגם את מודאל ההיסטוריה (readOnly)
 document.addEventListener('click', e => {

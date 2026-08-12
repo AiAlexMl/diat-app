@@ -303,6 +303,7 @@
   let authEl = null;
   function openLogin(subtitle) {
     if (authEl) return;
+    pushBack(closeLogin);
     authEl = document.createElement('div');
     authEl.className = 'auth-overlay';
     authEl.addEventListener('click', e => { if (e.target === authEl) closeLogin(); });
@@ -483,7 +484,7 @@
       }
     });
   }
-  function closeLogin() { if (authEl) { authEl.remove(); authEl = null; } }
+  function closeLogin() { if (!authEl) return; authEl.remove(); authEl = null; popBack(); }
 
   // ============================================================
   // חיבור למאמנת (?join=<invite_code>)
@@ -500,7 +501,7 @@
                                             // v2 (08/08/2026): פירוט מפת 14 הימים במקום "אחוז הארוחות"
   let joinEl = null;
 
-  function closeJoin() { if (joinEl) { joinEl.remove(); joinEl = null; } }
+  function closeJoin() { if (!joinEl) return; joinEl.remove(); joinEl = null; popBack(); }
 
   async function openJoin(invite) {
     if (joinEl) return;
@@ -615,6 +616,7 @@
     box.append(h, sub, seeT, see, noT, no, nameL, goalL, c1, c2, go, status, skip);
     joinEl.appendChild(box);
     document.body.appendChild(joinEl);
+    pushBack(closeJoin);   // אחרי כל היציאות המוקדמות, כדי שלא תישאר רשומה יתומה
     setTimeout(() => nameI.focus(), 30);
   }
 
@@ -810,6 +812,7 @@
 
   function openAccountModal(initialTab) {
     if (accountEl || !session) return;
+    pushBack(closeAccountModal);
     accountEl = document.createElement('div');
     accountEl.className = 'auth-overlay account-overlay';   // account-overlay → מסך-מלא במובייל (scoped, לא נוגע במודאל ההתחברות)
     accountEl.addEventListener('click', e => { if (e.target === accountEl) closeAccountModal(); });
@@ -1107,7 +1110,9 @@
     });
   }
   function closeAccountModal() {
-    if (accountEl) { accountEl.remove(); accountEl = null; }
+    if (!accountEl) return;
+    accountEl.remove(); accountEl = null;
+    popBack();   // חזרה באנדרואיד סוגרת את המסך במקום לצאת מהאפליקציה
     try { updateFavHeart(); } catch (e) {}   // הלב במסך התפריט משקף מחיקות שנעשו בתוך המודאל
   }
   function showToastSafe(m, ms, action) { try { showToast(m, ms, action); } catch (e) {} }

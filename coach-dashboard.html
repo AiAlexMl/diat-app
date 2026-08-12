@@ -231,7 +231,7 @@
     if (!days || !days.length) return '';
     return '<span class="strip">' + days.map(function (v) {
       if (v == null) return '<i class="d pre" title="לפני ההצטרפות"></i>';
-      return v > 0 ? '<i class="d on" title="' + esc(v) + ' ארוחות"></i>' : '<i class="d off" title="לא סימנה"></i>';
+      return v > 0 ? '<i class="d on" title="' + esc(v) + ' ארוחות"></i>' : '<i class="d off" title="אין סימון"></i>';
     }).join('') + '</span>';
   }
 
@@ -240,18 +240,19 @@
 
   // "פעילה X מתוך Y ימים" עובד רק כש-Y הוא מספר. ליום בודד צריך ניסוח אחר לגמרי.
   function activeText(active, window_) {
-    if (!window_) return 'הצטרפה היום';
-    if (window_ === 1) return active ? 'סימנה ביום הראשון שלה' : 'יום ראשון, עוד לא סימנה';
-    return 'פעילה <b>' + active + '</b> מתוך ' + window_ + ' ימים';
+    if (!window_) return 'הצטרפות היום';
+    if (window_ === 1) return active ? 'סומן ביום הראשון' : 'יום ראשון, ללא סימון';
+    return 'סומנו <b>' + active + '</b> ימים מתוך ' + window_;
   }
 
-  // מצב במילים, בלי אחוז ובלי ציון. עובדה שהמאמנת מפרשת בעצמה.
+  // מצב במילים, בלי אחוז ובלי ציון. עובדה שהמאמן/ת מפרש/ת בעצמו/ה.
+  // לשון סבילה בכוונה: הסטטוס מתאר את הסימון ולא את האדם, ולכן אין בו מגדר.
   function statusText(r) {
-    if (r.window_days <= 1 && !r.active_days) return 'הצטרפה היום';
-    if (r.days_silent >= 999) return 'טרם התחילה';
-    if (r.days_silent === 0) return 'סימנה היום';
-    if (r.days_silent === 1) return 'סימנה אתמול';
-    return 'שתקה ' + days1(r.days_silent);
+    if (r.window_days <= 1 && !r.active_days) return 'הצטרפות היום';
+    if (r.days_silent >= 999) return 'ללא סימון עדיין';
+    if (r.days_silent === 0) return 'סומן היום';
+    if (r.days_silent === 1) return 'סומן אתמול';
+    return 'ללא סימון ' + days1(r.days_silent);
   }
 
   function renderShell(rows) {
@@ -285,8 +286,8 @@
       '</details>';
 
     if (!rows.length) {
-      html += '<div class="empty">עדיין אין מתאמנות מחוברות.<br>' +
-        'שלחו את הלינק שלמעלה, ומי שתאשר תופיע כאן.</div>';
+      html += '<div class="empty">עדיין אין מתאמנים מחוברים.<br>' +
+        'שלחו את הלינק שלמעלה, ומי שיאשר יופיע כאן.</div>';
     } else {
       // שורה קומפקטית = טריאז' ("מי צריכה אותי"). הפירוט נפתח בלחיצה, רק למי
       // שעומדים לכתוב לה. מאמנת עם 20 מתאמנות סורקת, היא לא קוראת 20 כרטיסים.
@@ -328,7 +329,7 @@
       }, function () {});
     };
     document.getElementById('irot').onclick = async function () {
-      if (!confirm('לרענן את הלינק? הישן יפסיק לעבוד מיד. מתאמנות שכבר מחוברות לא מושפעות.')) return;
+      if (!confirm('לרענן את הלינק? הישן יפסיק לעבוד מיד. מי שכבר מחובר/ת לא מושפע/ת.')) return;
       var r = await sb.rpc('rotate_invite');
       if (!r.error) { me.invite_code = r.data; load(); }
     };
@@ -340,7 +341,7 @@
     Array.prototype.forEach.call(root.querySelectorAll('.rm'), function (b) {
       b.onclick = async function (e) {
         e.stopPropagation();
-        if (!confirm('להסיר את ' + b.dataset.name + '? היא תפסיק להופיע כאן, ואת ההתמדה שלה לא תראו יותר.')) return;
+        if (!confirm('להסיר את ' + b.dataset.name + '? השם יפסיק להופיע כאן, ולא תראו יותר את ההתמדה.')) return;
         await sb.from('coach_links').update({ status: 'revoked' })
           .eq('trainee_id', b.dataset.id).eq('status', 'active');
         load();
