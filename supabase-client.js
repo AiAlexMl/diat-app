@@ -391,7 +391,11 @@
       if (verifying) return;
       verifying = true; vBtn.disabled = true; setStatus('מאמת...');
       try {
-        const { error } = await sb.auth.verifyOtp({ email: sentEmail, token: code, type: 'email' });
+        // ⚠️ שני סוגי טוקן. משתמש **חדש** מקבל אישור הרשמה (`signup`), משתמש קיים
+        //    מקבל התחברות רגילה (`email`). אימות בסוג אחד בלבד היה נכשל בדיוק על
+        //    מי שנרשם בפעם הראשונה, כלומר על הרושם הראשון. (12/08/2026)
+        let { error } = await sb.auth.verifyOtp({ email: sentEmail, token: code, type: 'email' });
+        if (error) ({ error } = await sb.auth.verifyOtp({ email: sentEmail, token: code, type: 'signup' }));
         if (error) { setStatus('קוד שגוי או שפג תוקפו, נסו שוב'); clearBoxes(); boxes[0].focus(); }
         // הצלחה → onAuthStateChange('SIGNED_IN') סוגר את המודאל וממזג
       } catch (e) { setStatus('האימות נכשל, נסו שוב'); }

@@ -393,7 +393,10 @@
       var c = (document.getElementById('code').value || '').replace(/\D/g, '');
       if (c.length !== 6) { stat.textContent = 'הקוד הוא 6 ספרות'; return; }
       stat.textContent = 'מאמת…';
-      var r = await sb.auth.verifyOtp({ email: (mail.value || '').trim(), token: c, type: 'email' });
+      // שני סוגי טוקן: משתמש חדש = אישור הרשמה (signup), קיים = התחברות (email).
+      var em = (mail.value || '').trim();
+      var r = await sb.auth.verifyOtp({ email: em, token: c, type: 'email' });
+      if (r.error) r = await sb.auth.verifyOtp({ email: em, token: c, type: 'signup' });
       if (r.error) { stat.textContent = 'קוד שגוי או שפג תוקפו'; return; }
       start();   // מחובר — מתחילים מחדש, כולל claim אם יש ?invite
     };
