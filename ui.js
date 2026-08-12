@@ -440,11 +440,16 @@ function updateDayProgress() {
   // המכנה = סך קלוריות היום בפועל (כמו הסיכום למטה), לא היעד — כך אכילת הכל = 100% והמספרים זהים
   const totalCal = active.reduce((s, x) => s + x.m.totCal, 0);
   const eatenCal = active.reduce((s, x) => s + (DAY.eaten[x.i] ? x.m.totCal : 0), 0);
-  const count = active.filter(x => DAY.eaten[x.i]).length;
+  // ⚠️ **הפינוק אינו ארוחה בספירה** (13/08/2026). הוא נספר כאן ולא נספר ב-summaryStats
+  //    שנשלח למאמן/ת, כלומר המשתמש ראה 0/5 והמאמן/ת ראו 4. הכוונה המקורית מתועדת שם:
+  //    פינוק הוא בחירה ולא מטלה. הקלוריות שלו כן נשארות במונה ובמכנה — הן אמיתיות
+  //    ומשוריינות מהיעד, ורק הספירה "X מתוך Y ארוחות" מתעלמת ממנו.
+  const tasks = active.filter(x => x.m.type !== 'treat');
+  const count = tasks.filter(x => DAY.eaten[x.i]).length;
   const pct = Math.min(100, Math.round(eatenCal / Math.max(totalCal, 1) * 100));
   box.innerHTML = `
     <div class="dp-row">
-      <span>נאכלו ${count}/${active.length} ארוחות</span>
+      <span>נאכלו ${count}/${tasks.length} ארוחות</span>
       <span><strong>${eatenCal.toLocaleString()}</strong> / ${totalCal.toLocaleString()} קק"ל</span>
     </div>
     <div class="dp-track"><div class="dp-fill" style="width:${pct}%"></div></div>`;
