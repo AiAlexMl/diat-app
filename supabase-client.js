@@ -436,7 +436,9 @@
 
     function showCodeStep(addr) {
       sentEmail = addr;
-      setStatus('שלחנו קוד בן ' + OTP_LEN + ' ספרות ל-' + addr + '. הזינו אותו כאן (תקף לשעה).');
+      // ⚠️ "10 דקות" חייב להתאים ל-Email OTP expiration בסופהבייס (600 שניות).
+      //    שינוי שם בלי שינוי כאן = משתמש שקורא זמן אחד וחווה אחר, וקורא לזה תקלה.
+      setStatus('שלחנו קוד בן ' + OTP_LEN + ' ספרות ל-' + addr + '. הזינו אותו כאן (תקף ל-10 דקות).');
       email.style.display = 'none'; mBtn.style.display = 'none';
       codeWrap.style.display = '';
       clearBoxes(); boxes[0].focus();
