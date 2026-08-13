@@ -10,7 +10,7 @@
   --bg-info:     #eef2ff;
   --bg-danger:   #fff0f0;
   --text:        #111827;
-  --text-sec:    #6b7280;
+  --text-sec:    #5f6675;   /* כהה מ-#6b7280: על רקע העמוד הישן נתן 4.09, מתחת ל-4.5 (נמדד 13/08/2026) */
   --text-tert:   #5b6270;
   --text-info:   #4f46e5;
   --text-danger: #dc2626;
@@ -124,7 +124,7 @@ body {
 .coach-branded .logo-tag   { overflow-wrap: anywhere; }
 .coach-powered {
   font-size: 12px; font-weight: 500;
-  color: #8b90a3;                 /* כמו קישורי ה-footer */
+  color: #5f6675;                 /* כמו קישורי ה-footer */
   letter-spacing: 0.2px;
   margin-bottom: 6px;
 }
@@ -852,7 +852,7 @@ input[type="number"]:focus {
 .fiber-row strong { color: var(--text); font-weight: 700; }
 .fiber-row .fiber-val { color: var(--text-tert); display: inline-flex; align-items: center; gap: 6px; }
 .fiber-num { unicode-bidi: isolate; }              /* השבר נקרא יציב "50 / 31g" LTR — בלי היפוך bidi שמזיז את ה-g */
-.fiber-ok { color: #10b981; font-weight: 700; }    /* ✓ רך כשעומדים ביעד (משוב חיובי, לא ציון) */
+.fiber-ok { color: #047857; font-weight: 700; }    /* ✓ רך כשעומדים ביעד (משוב חיובי, לא ציון) */
 .fiber-low { color: #b45309; font-size: 12px; }
 
 /* הערת תחתית */
