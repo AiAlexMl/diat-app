@@ -84,12 +84,18 @@ jobs:
           echo "events_health -> $h"
           total=$(echo "$h" | grep -o '"total":[0-9]*' | head -1 | cut -d: -f2)
           hour=$(echo "$h"  | grep -o '"last_hour":[0-9]*' | head -1 | cut -d: -f2)
+          # ⚠️ fail-closed. אם הפונקציה נעלמה או החזירה שגיאה, `total` ריק — ובגרסה
+          # הראשונה שני התנאים פשוט דילגו וההרצה עברה בירוק. שומר שנכשל **פתוח**
+          # גרוע משומר שלא קיים, כי הוא נותן ביטחון שאין לו כיסוי. (נתפס בלוג 13/08)
+          if ! echo "$total" | grep -qE '^[0-9]+$'; then
+            echo "::error::events_health לא החזירה מספר — ההגנה על events אינה פעילה"; exit 1
+          fi
           # ספים: ~290 שורות אחרי חודשיים אמיתיים, ו-5 ביום. 20,000 הוא פי 70
           # מהמצב הנוכחי ופי 10 מתחת לתקרה; 500 בשעה אינו מצב טבעי בשום תרחיש.
-          if [ -n "$total" ] && [ "$total" -gt 20000 ]; then
+          if [ "$total" -gt 20000 ]; then
             echo "::error::events מכילה $total שורות — בדוק הצפה (התקרה 200,000)"; fail=1
           fi
-          if [ -n "$hour" ] && [ "$hour" -gt 500 ]; then
+          if echo "$hour" | grep -qE '^[0-9]+$' && [ "$hour" -gt 500 ]; then
             echo "::error::events קיבלה $hour שורות בשעה האחרונה — קצב לא טבעי"; fail=1
           fi
           exit $fail
