@@ -71,4 +71,25 @@ jobs:
             [ "$code" = "200" ] || fail=1
             sleep 2   # בקשות נפרדות, לא ברסט אחד
           done
+
+          # ═══ שמירה על events (נוסף 13/08/2026 אחרי סקירת אבטחה) ═══
+          # ל-events יש insert policy ל-anon (`with check (true)`), ולכן כל אחד עם
+          # המפתח הציבורי יכול למלא אותה ולהשבית כתיבות של משתמשים אמיתיים.
+          # מיגרציה 010 חוסמת ב-200,000 שורות; כאן מתריעים **הרבה לפני**.
+          # events_health מחזירה מספרים בלבד ולכן נגישה עם המפתח הציבורי — אין כאן סוד.
+          # כשל של ה-Action הוא ערוץ ההתרעה: גיטהאב שולח מייל אוטומטית.
+          h=$(curl -s -X POST "$SUPABASE_URL/rest/v1/rpc/events_health" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" -d '{}')
+          echo "events_health -> $h"
+          total=$(echo "$h" | grep -o '"total":[0-9]*' | head -1 | cut -d: -f2)
+          hour=$(echo "$h"  | grep -o '"last_hour":[0-9]*' | head -1 | cut -d: -f2)
+          # ספים: ~290 שורות אחרי חודשיים אמיתיים, ו-5 ביום. 20,000 הוא פי 70
+          # מהמצב הנוכחי ופי 10 מתחת לתקרה; 500 בשעה אינו מצב טבעי בשום תרחיש.
+          if [ -n "$total" ] && [ "$total" -gt 20000 ]; then
+            echo "::error::events מכילה $total שורות — בדוק הצפה (התקרה 200,000)"; fail=1
+          fi
+          if [ -n "$hour" ] && [ "$hour" -gt 500 ]; then
+            echo "::error::events קיבלה $hour שורות בשעה האחרונה — קצב לא טבעי"; fail=1
+          fi
           exit $fail

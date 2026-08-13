@@ -294,6 +294,20 @@ try {
   });
   check('מאמנת לא מתחברת כמתאמנת של עצמה (006)', !!self);
 
+  // ── 4ב. events: תקרה + פונקציית בריאות (010) ──
+  // events פתוחה לכתיבה ל-anon בכוונה (מדידת משתמש אנונימי), ולכן ההגנה היא
+  // תקרה ולא הרשאה. הבדיקה כאן היא ש**המספרים נגישים בלי סוד** ושהטבלה עצמה
+  // עדיין אטומה לקריאה — זה מה שמאפשר ל-keepalive להתריע בלי service_role.
+  const anonC = createClient(URL, ANON, { auth: { persistSession: false } });
+  const { data: eh, error: ehErr } = await anonC.rpc('events_health');
+  const row = Array.isArray(eh) ? eh[0] : eh;
+  check('events_health נגישה ל-anon', !ehErr, ehErr?.message);
+  check('events_health מחזירה מספרים בלבד',
+    !!row && typeof row.total === 'number' && typeof row.last_hour === 'number' &&
+    Object.keys(row).length === 2);
+  const { data: rawEv } = await anonC.from('events').select('*').limit(1);
+  check('🔑 anon עדיין לא קורא שורות מ-events', (rawEv || []).length === 0);
+
   // ── 5. delete_my_account: מוחק את המשתמש וכל הדאטה ──
   const { error: da } = await b.client.rpc('delete_my_account');
   check('delete_my_account רץ למשתמש מחובר', !da, da?.message);
