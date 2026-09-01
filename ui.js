@@ -1108,6 +1108,12 @@ function neverAgain(id) {
   });
 }
 
+// אייקון כרטיס המאכל — מקור אחד לשני מקומות (renderGrid ו-toggleFood).
+// ⚠️ היו שני ליטרלים נפרדים, וב-02/09 תוקן רק אחד: הרינדור הראשון הציג ○
+//    כמו שצריך, ואחרי שתי לחיצות חזר ה-✓ הישן מ-toggleFood. ✓ במצב לא-מסומן
+//    הוא בדיוק מה שבלבל משתמשים במסך ההחרגה, כי הוא נקרא "נבחר".
+const foodIcon = (mode, on) => mode === 'like' ? (on ? '❤️' : '🤍') : (on ? '🚫' : '○');
+
 function renderGrid(mode) {
   const cat = mode === 'like' ? likeCat : avoidCat;
   const cls = mode === 'like' ? 'active-like' : 'active-avoid';
@@ -1124,7 +1130,7 @@ function renderGrid(mode) {
     const on = mode === 'like' ? S.liked.has(f.id) : S.avoided.has(f.id);
     return `<div class="food-card${on ? (mode === 'like' ? ' liked' : ' avoided') : ''}" role="button" tabindex="0"
                  onclick="toggleFood('${mode}',${f.id})" id="${mode}-${f.id}">
-      <div class="fc-icon">${mode === 'like' ? (on ? '❤️' : '🤍') : (on ? '🚫' : '○')}</div>
+      <div class="fc-icon">${foodIcon(mode, on)}</div>
       <div class="fc-name">${esc(f.name)}</div>
       ${f.prep ? `<div class="fc-prep">${esc(f.prep)}</div>` : ''}
     </div>`;
@@ -1143,8 +1149,7 @@ function toggleFood(mode, id) {
   const card = document.getElementById(`${mode}-${id}`);
   const on   = set.has(id);
   card.classList.toggle(mode === 'like' ? 'liked' : 'avoided', on);
-  card.querySelector('.fc-icon').textContent =
-    mode === 'like' ? (on ? '❤️' : '🤍') : (on ? '🚫' : '✓');
+  card.querySelector('.fc-icon').textContent = foodIcon(mode, on);
   updateTabBadges(mode);
   saveState();
 }
