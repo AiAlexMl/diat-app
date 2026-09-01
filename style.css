@@ -1320,7 +1320,18 @@ input[type="number"]:focus {
 .fpr-chev { flex: 0 0 auto; font-size: 22px; color: var(--accent); line-height: 1; }
 
 /* הקופסה גבוהה יותר מבורר הפינוקים — היא מכילה רשת מאכלים שלמה */
-.fp-box { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+.fp-box { position: relative; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+
+/* ✕ בפינה. "סיימתי" לבד לא מספיק: במודאל מצפים לסגירה בפינה,
+   וזו גם אותה תבנית כמו .auth-close. אזור מגע 44px דרך ::before,
+   כמו ב-.item-remove — padding היה מגדיל את הריבוע הנראה. */
+.fp-close {
+  position: absolute; top: 12px; inset-inline-start: 14px;
+  border: none; background: none; padding: 4px;
+  font-size: 16px; line-height: 1; color: var(--text-tert); cursor: pointer;
+}
+.fp-close:hover { color: var(--text); }
+.fp-close::before { content: ''; position: absolute; inset: -12px; }
 
 .fp-tabs { display: flex; gap: 8px; margin: 4px 0 14px; }
 .fp-tab {

@@ -320,22 +320,39 @@
     p.className = 'auth-sub';
     p.textContent = subtitle || 'ההעדפות והימים שלך יישמרו לחשבון ויהיו זמינים מכל מכשיר.';
 
-    // הסכמה אקטיבית (כמו הדיסקליימר): הכפתורים נעולים עד סימון
+    // ── שתי הסכמות אקטיביות ונפרדות, שתיהן חובה (01/09/2026) ──────────────
+    // היה צ'קבוקס אחד שאיגד מדיניות פרטיות + שמירה בענן, ולא הזכיר את תנאי
+    // השימוש כלל. הסכמה מאוגדת חלשה, ולכן: **תיבה לכל דבר.**
+    // ⚠️ הסדר חשוב: `terms.html` עודכן קודם (סעיף 6, "חשבון וסנכרון").
+    //    לבקש אישור למסמך ששותק על שכבת החשבון זה צ'קבוקס שנראה כמו הגנה ואיננה.
+    const link = (href, text) => {
+      const a = document.createElement('a');
+      a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text;
+      return a;
+    };
+    const syncAuthBtns = () => { gBtn.disabled = mBtn.disabled = !(cbT.checked && cb.checked); };
+
+    const consentT = document.createElement('label');
+    consentT.className = 'auth-consent';
+    const cbT = document.createElement('input');
+    cbT.type = 'checkbox';
+    const ttxt = document.createElement('span');
+    ttxt.appendChild(document.createTextNode('אני מאשר/ת את '));
+    ttxt.appendChild(link('terms.html', 'תנאי השימוש'));
+    ttxt.appendChild(document.createTextNode('.'));
+    consentT.append(cbT, ttxt);
+    cbT.addEventListener('change', syncAuthBtns);
+
     const consent = document.createElement('label');
     consent.className = 'auth-consent';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     const ctxt = document.createElement('span');
     ctxt.appendChild(document.createTextNode('אני מאשר/ת את '));
-    const pl = document.createElement('a');
-    pl.href = 'privacy.html';
-    pl.target = '_blank';
-    pl.rel = 'noopener';
-    pl.textContent = 'מדיניות הפרטיות';
-    ctxt.appendChild(pl);
+    ctxt.appendChild(link('privacy.html', 'מדיניות הפרטיות'));
     ctxt.appendChild(document.createTextNode(' ואת שמירת ההעדפות והתפריטים שלי בענן, לחשבוני בלבד.'));
     consent.append(cb, ctxt);
-    cb.addEventListener('change', () => { gBtn.disabled = mBtn.disabled = !cb.checked; });
+    cb.addEventListener('change', syncAuthBtns);
 
     const gBtn = document.createElement('button');
     gBtn.className = 'auth-google';
@@ -446,7 +463,7 @@
     function showEmailStep() {
       codeWrap.style.display = 'none';
       email.style.display = ''; mBtn.style.display = '';
-      mBtn.disabled = !cb.checked; setStatus(''); email.focus();
+      mBtn.disabled = !(cbT.checked && cb.checked); setStatus(''); email.focus();
     }
 
     mBtn.onclick = async () => {
@@ -458,7 +475,7 @@
         if (!error) { showCodeStep(v); return; }
         setStatus(error.status === 429 ? 'נשלחו יותר מדי מיילים. נסו שוב בעוד כשעה' : 'השליחה נכשלה, נסו שוב');
       } catch (e) { setStatus('השליחה נכשלה, נסו שוב'); }
-      mBtn.disabled = !cb.checked;
+      mBtn.disabled = !(cbT.checked && cb.checked);
     };
     backBtn.onclick = showEmailStep;
     email.addEventListener('keydown', e => { if (e.key === 'Enter' && !mBtn.disabled) mBtn.click(); });
@@ -493,12 +510,12 @@
     gLink.textContent = 'התחברת בעבר עם Google?';
     gLink.onclick = () => { gWrap.style.display = ''; gLink.style.display = 'none'; };
 
-    box.append(x, h, p, consent, email, mBtn, codeWrap, gLink, gWrap, status);
+    box.append(x, h, p, consentT, consent, email, mBtn, codeWrap, gLink, gWrap, status);
     authEl.appendChild(box);
     document.body.appendChild(authEl);
 
     // focus-trap בסיסי (כמו מודאל הדיסקליימר): Esc סוגר, Tab נשאר בתוך המודאל
-    cb.focus();
+    cbT.focus();   // המיקוד לתיבה הראשונה
     authEl.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeLogin();
       if (e.key === 'Tab') {

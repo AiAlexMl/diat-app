@@ -1011,6 +1011,15 @@ function openFoodPicker(mode) {
   document.body.style.overflow = 'hidden';
   pushBack(closeFoodPicker);          // חזרה באנדרואיד סוגרת את החלון, לא את האפליקציה
   foodPickerTab(mode || 'like');
+  // שלוש דרכי סגירה, כמו בכל מודאל: ✕ בפינה, לחיצה על הרקע, ו-Escape.
+  // "סיימתי" לבד הוא כפתור בתחתית רשימה נגללת, כלומר לפעמים מחוץ למסך.
+  if (!ov.dataset.wired) {
+    ov.dataset.wired = '1';
+    ov.addEventListener('click', e => { if (e.target === ov) closeFoodPicker(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !ov.hidden) { e.preventDefault(); closeFoodPicker(); }
+    });
+  }
 }
 
 function closeFoodPicker() {
