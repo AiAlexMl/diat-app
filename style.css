@@ -1213,7 +1213,7 @@ input[type="number"]:focus {
   .coach-cta, .confetti-layer, .site-footer,
   .fav-heart, .menu-quiet-actions, .reset-link, .account-btn, .app-toast, .img-lightbox { display: none !important; }
   /* צמצום לדף אחד: בלי מאקרו פר-ארוחה, בלי תמונות, בלי טיפים (הסיכום בסוף נשאר) */
-  .macro-row, .food-thumb, .tips-box, .treat-tip, .day-note, .print-hint,
+  .macro-row, .food-thumb, .tips-box, .treat-tip, .day-note, .first-hint, .print-hint,
   .bmi-warning, .field-error { display: none !important; }
   /* כרטיסים צפופים יותר ולא נחתכים באמצע עמוד */
   .meal-card { break-inside: avoid; box-shadow: none !important; margin-bottom: 8px; padding: 10px 12px; }
@@ -1328,12 +1328,13 @@ input[type="number"]:focus {
    וזו גם אותה תבנית כמו .auth-close. אזור מגע 44px דרך ::before,
    כמו ב-.item-remove — padding היה מגדיל את הריבוע הנראה. */
 .fp-close {
-  position: absolute; top: 12px; inset-inline-end: 14px;   /* לצד השני מהכותרת, שלא יתנגשו */
-  border: none; background: none; padding: 4px;
+  position: absolute; top: 4px; inset-inline-end: 6px;   /* לצד השני מהכותרת, שלא יתנגשו */
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0;
   font-size: 16px; line-height: 1; color: var(--text-tert); cursor: pointer;
 }
 .fp-close:hover { color: var(--text); }
-.fp-close::before { content: ''; position: absolute; inset: -12px; }
 
 .fp-tabs { display: flex; gap: 8px; margin: 4px 0 14px; }
 .fp-tab {
@@ -1358,3 +1359,33 @@ input[type="number"]:focus {
 .item-never:hover { background: #f59e0b; color: #fff; }
 .item-never::before { content: ''; position: absolute; inset: -12px; }
 .meal-card.editing .item-never { display: inline-flex; align-items: center; justify-content: center; }
+
+/* ══════════════════════════════════════════
+   הכוונה ראשונה במסך התפריט (02/09/2026)
+   בולט מספיק כדי שאי אפשר לפספס, ובתוך הדף ולא מעליו:
+   התפריט הוא הפרס, ומודאל שמסתיר אותו נסגר בלי שקוראים.
+   נעלם לתמיד אחרי הסימון הראשון.
+   ══════════════════════════════════════════ */
+.first-hint {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-info), #f5f3ff);
+  border: 1.5px solid var(--border-info);
+  border-right: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 14px 16px 14px 44px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.fh-title { font-size: 14.5px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+.fh-text  { font-size: 13px; line-height: 1.6; color: var(--text-sec); }
+/* ✕ בצד השני מהטקסט (RTL: שמאל), עם אזור מגע 44px דרך ::before */
+/* 44px אמיתיים ולא ::before: הרקע שקוף, אז הגדלת התיבה לא צובעת כלום,
+   והבודק מודד את האלמנט עצמו ולא פסבדו-אלמנטים. */
+.fh-close {
+  position: absolute; top: 4px; inset-inline-end: 4px;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0;
+  font-size: 14px; line-height: 1; color: var(--text-tert); cursor: pointer;
+}
+.fh-close:hover { color: var(--accent); }

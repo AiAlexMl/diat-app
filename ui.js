@@ -71,6 +71,31 @@ function loadState() {
 //  היום שלי — שמירת התפריט הנוכחי + סימוני "אכלתי" (הבסיס ללולאת השימוש היומית)
 // ══════════════════════════════════════════
 const DAY_KEY = 'shapeat-day';
+
+// ── הכוונה ראשונה במסך התפריט (02/09/2026) ───────────────────────────────
+// מדידה: 331 מילים ו-26 פקדים במסך התפריט, וכתריסר דפוסי פעולה שמתגלים
+// בגילוי עצמי בלבד. משתמש חדש לא יודע במה להתחיל.
+// ⇒ רמז אחד, לפעולה אחת: הסימון ✓, כי הוא מה שהופך מחולל חד-פעמי למלווה יומי.
+// 🔑 **הרמז נמדד בהתנהגות ולא בחשיפה:** הוא לא נעלם אחרי שהוצג, אלא אחרי
+//    שהמשתמש סימן ✓ פעם אחת אי פעם. סגירה מסתירה אותו **להיום בלבד**.
+//    רמז שהוצג פעם ולא הוביל לכלום עשה אפס, ולהיעלם אחריו זה לוותר בדיוק
+//    על מי שהיה צריך אותו.
+const EATEN_ONCE_KEY = 'shapeat-eaten-once';     // נדלק בסימון ✓ הראשון, ואז הרמז לא חוזר לעולם
+const HINT_DISM_KEY  = 'shapeat-hint-dismissed'; // תאריך הסגירה האחרונה
+
+const lsRead = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsWrite = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+function shouldShowFirstHint() {
+  if (lsRead(EATEN_ONCE_KEY)) return false;          // כבר סימן פעם אחת — הבין
+  return lsRead(HINT_DISM_KEY) !== todayStr();       // נסגר היום? לא היום. מחר כן
+}
+
+function dismissFirstHint() {
+  lsWrite(HINT_DISM_KEY, todayStr());
+  const el = document.getElementById('first-hint');
+  if (el) el.remove();
+}
 let DAY = null;   // { date, target, meals(live), eaten[], warn{bmi,carb,menu}, gLabel, tLabel }
 
 const FOOD_BY_ID = Object.fromEntries([...ALL, ...TREATS].map(f => [f.id, f]));
@@ -420,6 +445,9 @@ function toggleEaten(i) {
   const wasComplete = dayComplete();
   DAY.eaten[i] = !DAY.eaten[i];
   saveDay();
+  // הסימון הראשון אי פעם — הרמז עשה את שלו ולא יחזור. גם ביטול סימון נחשב:
+  // מי שלחץ יודע איפה הכפתור, וזו כל המטרה.
+  if (!lsRead(EATEN_ONCE_KEY)) { lsWrite(EATEN_ONCE_KEY, '1'); dismissFirstHint(); }
   const card = document.getElementById(`meal-card-${i}`);
   if (card) {
     card.classList.toggle('meal-eaten', DAY.eaten[i]);
@@ -1267,6 +1295,16 @@ function dayHtml(day, opts) {
     </div>`;
   }
 
+  // הכוונה ראשונה — מעל הארוחה הראשונה, במקום שממילא ריק.
+  // ⚠️ לא ב-readOnly (תצוגת יום שמור במסך החשבון) ולא בהדפסה.
+  if (!ro && shouldShowFirstHint()) {
+    html += `<div class="first-hint" id="first-hint">
+      <button class="fh-close" onclick="dismissFirstHint()" aria-label="סגירת ההסבר" title="סגירה">✕</button>
+      <div class="fh-title">סמנו מה שאכלתם</div>
+      <div class="fh-text">אחרי כל ארוחה, לחצו ✓ בכרטיס שלה. פס ההתקדמות יתעדכן ותראו איפה אתם עומדים ביעד.</div>
+    </div>`;
+  }
+
   meals.forEach((m, mi) => {
     if (m.removed) return;   // ארוחה שהוסרה בתיקון יום (חצה את היעד)
     const tagH = m.tag
@@ -1983,7 +2021,7 @@ function closeDisclaimer() {
 // ומחשבים zoom שמתאים לעמוד. beforeprint חל גם על window.print() מהכפתור.
 const PRINT_HIDE_SEL = '.step-bar,.disclaimer-overlay,.nav-btns,.treat-bar,.day-progress,' +
   '.eaten-btn,.alt-btn,.meal-edit-btn,.item-remove,.item-never,.treat-remove,.coach-cta,.site-footer,' +
-  '.macro-row,.food-thumb,.tips-box,.treat-tip,.day-note';
+  '.macro-row,.food-thumb,.tips-box,.treat-tip,.day-note,.first-hint';
 function fitMenuToOnePage() {
   const wrap = document.querySelector('.app-wrapper');
   if (!wrap) return;
