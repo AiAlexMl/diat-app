@@ -1388,11 +1388,14 @@ function dayHtml(day, opts) {
       <div class="macro-pill"><div class="val">${m.totF}g</div><div class="lbl">שומן</div></div>
     </div>`;
     if (!ro) {
+      // 🔑 "אכלתי" ראשון בסדר ה-DOM ⇒ **הכי ימני**, כלומר הראשון שנקרא בעברית.
+      //    קודם הוא היה אחרון, כלומר הפעולה הראשית נקראה אחרי החריגה — וזה ביטל
+      //    חלק מהתיקון שהצבע עשה. הצבע קובע מי בולט, הסדר קובע מי נפגש ראשון.
       html += `<div class="meal-actions">
+      <button class="eaten-btn${day.eaten[mi] ? ' on' : ''}" onclick="toggleEaten(${mi})">${eatenLabel(day.eaten[mi])}</button>
+      ${m.type !== 'treat' ? `<button class="alt-btn" onclick="openAltPicker(${mi})">🔄 משהו אחר</button>` : ''}
       ${m.type !== 'treat' && trimGap(m) ? `<button class="alt-btn" onclick="balanceMeal(${mi})">⚖️ אזן את הארוחה</button>` : ''}
       ${m.type !== 'treat' ? `<button class="alt-btn add-item-btn" onclick="openAddItemPicker(${mi})">➕ הוסף פריט</button>` : ''}
-      ${m.type !== 'treat' ? `<button class="alt-btn" onclick="openAltPicker(${mi})">🔄 משהו אחר</button>` : ''}
-      <button class="eaten-btn${day.eaten[mi] ? ' on' : ''}" onclick="toggleEaten(${mi})">${eatenLabel(day.eaten[mi])}</button>
     </div>`;
     }
     html += `</div>`;
@@ -1572,6 +1575,7 @@ function openTreatPicker() {
   ov.className = 'picker-overlay';
   ov.id = 'treat-picker';
   ov.innerHTML = `<div class="picker-box">
+    <button class="picker-close" onclick="closeTreatPicker()" aria-label="סגירה" title="סגירה">✕</button>
     <div class="picker-title">מה בא לך היום? 🍫</div>
     <div class="picker-sub">התפריט ייבנה מחדש כך שהפינוק נכנס ביעד היומי</div>
     <div class="picker-list">` + TREATS.map(tr =>
@@ -1588,7 +1592,7 @@ function openTreatPicker() {
     </div>
     <button class="btn-primary" style="width:100%" onclick="chooseManualTreat()">➕ הוסף פינוק</button>
     <div id="treat-feedback" class="ai-feedback"></div>
-    <button class="btn-secondary picker-cancel" onclick="closeTreatPicker()">ביטול</button>
+    <button class="btn-secondary picker-cancel" onclick="closeTreatPicker()">סיום</button>
   </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) closeTreatPicker(); });
   document.body.appendChild(ov);
@@ -1751,6 +1755,7 @@ function openAltPicker(mi) {
   ov.className = 'picker-overlay';
   ov.id = 'alt-picker';
   ov.innerHTML = `<div class="picker-box">
+    <button class="picker-close" onclick="closeAltPicker()" aria-label="סגירה" title="סגירה">✕</button>
     <div class="picker-title">מה אכלת בפועל? 🔄</div>
     <div class="picker-sub">הוסף פריט אחד או יותר, ונבנה מחדש את המשך היום סביבם</div>
     <div class="picker-tabs">
@@ -1894,6 +1899,7 @@ function openAddItemPicker(mi) {
   const ov = document.createElement('div');
   ov.className = 'picker-overlay'; ov.id = 'add-item-picker';
   ov.innerHTML = `<div class="picker-box">
+    <button class="picker-close" onclick="closeAddItemPicker()" aria-label="סגירה" title="סגירה">✕</button>
     <div class="picker-title">הוספת פריט לארוחה ➕</div>
     <div class="picker-sub">בוחרים מאכל מהרשימה, קובעים כמות, ומוסיפים</div>
     <input id="ai-search" class="picker-input" placeholder="חיפוש מאכל..." oninput="document.getElementById('ai-list').innerHTML = aiRows(this.value)">

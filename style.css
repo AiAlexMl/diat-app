@@ -1018,6 +1018,7 @@ input[type="number"]:focus {
   z-index: 1100; padding: 1.25rem;
 }
 .picker-box {
+  position: relative;   /* עוגן ל-.picker-close שיושב absolute בפינה */
   background: var(--bg);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -1339,14 +1340,14 @@ input[type="number"]:focus {
 /* ✕ בפינה. "סיימתי" לבד לא מספיק: במודאל מצפים לסגירה בפינה,
    וזו גם אותה תבנית כמו .auth-close. אזור מגע 44px דרך ::before,
    כמו ב-.item-remove — padding היה מגדיל את הריבוע הנראה. */
-.fp-close {
+.picker-close {
   position: absolute; top: 4px; inset-inline-end: 6px;   /* לצד השני מהכותרת, שלא יתנגשו */
   width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
   border: none; background: none; padding: 0;
   font-size: 16px; line-height: 1; color: var(--text-tert); cursor: pointer;
 }
-.fp-close:hover { color: var(--text); }
+.picker-close:hover { color: var(--text); }
 
 .fp-tabs { display: flex; gap: 8px; margin: 4px 0 14px; }
 .fp-tab {
