@@ -1321,12 +1321,14 @@ input[type="number"]:focus {
 
 /* הקופסה גבוהה יותר מבורר הפינוקים — היא מכילה רשת מאכלים שלמה */
 .fp-box { position: relative; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+/* הכותרת לא תיגע ב-✕ גם אם תתארך: ריווח בצד שבו הוא יושב */
+.fp-box .picker-title { padding-inline-end: 48px; }
 
 /* ✕ בפינה. "סיימתי" לבד לא מספיק: במודאל מצפים לסגירה בפינה,
    וזו גם אותה תבנית כמו .auth-close. אזור מגע 44px דרך ::before,
    כמו ב-.item-remove — padding היה מגדיל את הריבוע הנראה. */
 .fp-close {
-  position: absolute; top: 12px; inset-inline-start: 14px;
+  position: absolute; top: 12px; inset-inline-end: 14px;   /* לצד השני מהכותרת, שלא יתנגשו */
   border: none; background: none; padding: 4px;
   font-size: 16px; line-height: 1; color: var(--text-tert); cursor: pointer;
 }
