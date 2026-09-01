@@ -16,7 +16,9 @@ Pure client-side web app (HTML + CSS + vanilla JS), Hebrew RTL. No build step, n
 
 `ui.js` calls functions and reads variables defined in both `data.js` and `app.js`.
 
-**5 screens** toggled via `display:none` / `display:block` — no routing. Step-bar dots updated via `.done` / `.active` classes.
+**3 screens** toggled via `display:none` / `display:block` — no routing. Step-bar dots updated via `.done` / `.active` classes.
+
+⚠️ **היו 5 עד 31/08/2026.** מסכי "מה אני אוהב" ו"מה אני לא אוכל" ירדו מהמסלול: הם דרשו לעבור על 114 מאכלים לפני שרואים משהו, ובתצפית על משתמשים אנשים **לא הבינו מה מוצג להם** ולא ידעו מתי סיימו. ⇒ **ברירת המחדל היא לא לגעת ולתת למנוע לבנות**, והבחירה עברה לחלון `#food-picker` שנפתח לפי בחירה בלבד (משורה במסך ההעדפות ומכפתור שקט בתפריט). `goTo` מזהה מסכים **לפי אינדקס**, ולכן מסך התפריט הוא כעת `goTo(2)`.
 
 ## Global State `S` (defined in `app.js`)
 
@@ -46,9 +48,11 @@ Account-gated progress graph, built **entirely in `supabase-client.js`** (no ui.
 
 | Function | Description |
 |----------|-------------|
-| `goTo(n)` | Navigate to screen n; calls `updateMacroDisplay()`, renders food grids on screens 2–3 |
+| `goTo(n)` | Navigate to screen n (0–2); calls `updateMacroDisplay()` |
+| `openFoodPicker(mode)` / `closeFoodPicker()` / `foodPickerTab(mode)` | חלון בחירת המאכלים — שתי לשוניות מעל אותו `renderGrid` |
+| `neverAgain(id)` | "אל תציע יותר" מכרטיס הארוחה → `S.avoided` + טוסט ביטול |
 | `updateMacroDisplay()` | Reads form inputs → `calcMacro()` → updates RMR box + live BMI warning on screen 0 |
-| `renderMenu()` | Calls `buildMenu()`, builds full HTML, navigates to screen 4 |
+| `renderMenu()` | Calls `buildMenu()`, builds full HTML, navigates to screen 2 (התפריט). **נקרא ישירות מכפתור ההמשך של מסך ההעדפות** |
 | `resetApp()` | Clears all Sets, resets goal/time/noTrain, resets all chip/button UI, calls `goTo(0)` |
 | `renderGrid(mode)` | Renders category tabs (with badge counts) + food cards for `'like'` or `'avoid'` mode |
 | `toggleFood(mode, id)` | Toggles a food in `S.liked`/`S.avoided`, updates card UI + calls `updateTabBadges()` |

@@ -9,15 +9,15 @@ paths:
 
 ## Screen Navigation
 
-`goTo(n)` shows screen `n` (0–4), hides others via `display:none`, updates step-bar classes.
+`goTo(n)` shows screen `n` (0–2), hides others via `display:none`, updates step-bar classes. **`goTo` מזהה לפי אינדקס ולא לפי id.**
 
 | Screen | Content |
 |--------|---------|
 | 0 | פרטים אישיים — age/height/weight/gender/goal + live RMR box + live BMI warning |
 | 1 | העדפות תזונה — diet chips, allergy chips, training time cards |
-| 2 | מאכלים מועדפים — category tabs with badge counts, food cards |
-| 3 | מאכלים מוחרגים — same grid structure, avoid mode |
-| 4 | תפריט — output of `renderMenu()` |
+| 2 | תפריט — output of `renderMenu()` |
+
+⚠️ **מסכי המאכלים (2–3 לשעבר) ירדו מהמסלול ב-31/08/2026** והפכו לחלון `#food-picker`. ראו `architecture.md`.
 
 ## Live BMI Warning (screen 0)
 
@@ -26,7 +26,7 @@ paths:
 - bulk + BMI ≥ 30 → orange warning
 - Otherwise → hidden
 
-## Food Grid (screens 2–3)
+## Food Grid (חלון `#food-picker`, לשעבר מסכים 2–3)
 
 `renderGrid(mode)` builds:
 1. **Category tabs** — each tab shows a badge with selected-item count for that category

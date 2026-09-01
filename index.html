@@ -22,8 +22,8 @@
        ממשיך להריץ גרסה ישנה גם אחרי פריסה. זה בדיוק מה שקרה ב-09/08: ארבעה
        תיקונים רצופים לא הגיעו לטלפון, ורדפנו אחרי באג שכבר תוקן.
        ⚠️ בכל שינוי ב-js/css — להעלות את המספר הזה (תאריך YYYYMMDD). -->
-  <link rel="stylesheet" href="style.css?v=20260813e">
-  <script src="coach-theme.js?v=20260813e"></script>
+  <link rel="stylesheet" href="style.css?v=20260901c">
+  <script src="coach-theme.js?v=20260901c"></script>
 </head>
 <body>
 
@@ -62,12 +62,12 @@
   </div>
 
   <!-- שורת התקדמות -->
+  <!-- שלושה שלבים: פרטים ← העדפות ← תפריט. בחירת מאכלים ירדה מהמסלול (31/08/2026)
+       והפכה לחלון אופציונלי, כי ברירת המחדל היא לתת למנוע לבנות. -->
   <div class="step-bar">
     <div class="step active" id="s0"></div>
     <div class="step"        id="s1"></div>
     <div class="step"        id="s2"></div>
-    <div class="step"        id="s3"></div>
-    <div class="step"        id="s4"></div>
   </div>
   </header>
 
@@ -170,44 +170,31 @@
       <div id="train-warn" class="field-error" style="display:none;margin-top:10px"></div>
     </div>
 
+    <!-- מסלול משני, אופציונלי, **לפני** כפתור הבנייה: מי שמגיע לכאן צריך לראות
+         את האפשרות לפני שהוא בונה, לא אחרי. ברירת המחדל נשארת לא לגעת. -->
+    <button class="food-picker-row" onclick="openFoodPicker('like')">
+      <span class="fpr-icon" aria-hidden="true">🍽️</span>
+      <span class="fpr-text">
+        <strong>בחירת מאכלים (לא חובה)</strong>
+        <small>מה שתסמנו ייכנס ראשון, ומה שתוציאו לא יופיע</small>
+      </span>
+      <span class="fpr-chev" aria-hidden="true">‹</span>
+    </button>
+
     <div class="nav-btns">
       <button class="btn-secondary" onclick="goTo(0)" data-m="← חזור" data-f="← חזרי">← חזור</button>
-      <button class="btn-primary"   onclick="goTo(2)" data-m="המשך ←" data-f="המשיכי ←">המשך ←</button>
-    </div>
-  </div>
-
-  <!-- ══ מסך 3: מאכלים מועדפים ══ -->
-  <div class="screen" id="screen-2">
-    <h1 class="screen-title" data-m="מה אתה אוהב לאכול? סמן ונדאג לשאר 🙂" data-f="מה את אוהבת לאכול? סמני ונדאג לשאר 🙂">מה אתה אוהב לאכול? סמן ונדאג לשאר 🙂</h1>
-    <div class="screen-sub" data-m="עבור בין הקטגוריות וסמן את המאכלים שאתה אוהב" data-f="עברי בין הקטגוריות וסמני את המאכלים שאת אוהבת">עבור בין הקטגוריות וסמן את המאכלים שאתה אוהב</div>
-    <div class="cat-tabs" id="like-tabs"></div>
-    <div class="food-grid" id="like-grid"></div>
-    <div class="count-bar">
-      <span>סומנו: <strong id="like-count">0</strong> מאכלים</span>
-    </div>
-    <div class="nav-btns">
-      <button class="btn-secondary" onclick="goTo(1)" data-m="← חזור" data-f="← חזרי">← חזור</button>
-      <button class="btn-primary"   onclick="goTo(3)" data-m="המשך ←" data-f="המשיכי ←">המשך ←</button>
-    </div>
-  </div>
-
-  <!-- ══ מסך 4: מאכלים מוחרגים ══ -->
-  <div class="screen" id="screen-3">
-    <h1 class="screen-title" data-m="יש משהו שאתה פשוט לא אוכל? 🚫" data-f="יש משהו שאת פשוט לא אוכלת? 🚫">יש משהו שאתה פשוט לא אוכל? 🚫</h1>
-    <div class="screen-sub" data-m="עבור בין הקטגוריות וסמן מאכלים שתרצה לא לראות בתפריט. אם אין — לחץ המשך" data-f="עברי בין הקטגוריות וסמני מאכלים שתרצי לא לראות בתפריט. אם אין — לחצי המשיכי">עבור בין הקטגוריות וסמן מאכלים שתרצה לא לראות בתפריט. אם אין — לחץ המשך</div>
-    <div class="cat-tabs" id="avoid-tabs"></div>
-    <div class="food-grid" id="avoid-grid"></div>
-    <div class="count-bar">
-      <span>מוחרגים: <strong id="avoid-count">0</strong> מאכלים</span>
-    </div>
-    <div class="nav-btns">
-      <button class="btn-secondary" onclick="goTo(2)" data-m="← חזור" data-f="← חזרי">← חזור</button>
       <button class="btn-primary"   onclick="renderMenu()">בונים תפריט! ←</button>
     </div>
   </div>
 
-  <!-- ══ מסך 5: תפריט ══ -->
-  <div class="screen" id="screen-4">
+  <!-- ══ מסך 3: מאכלים מועדפים ══ -->
+  <!-- ⚠️ מסכי "מה אני אוהב" ו"מה אני לא אוכל" ירדו מהמסלול ב-31/08/2026.
+       הם היו שני מסכים מתוך חמישה שדרשו לעבור על 114 מאכלים לפני שרואים משהו,
+       ובתצפית על משתמשים אנשים לא הבינו מה מוצג להם. התוכן שלהם עבר לחלון
+       `#food-picker` בתחתית הקובץ, שנפתח לפי בחירה בלבד. -->
+
+  <!-- ══ מסך 3: תפריט ══ -->
+  <div class="screen" id="screen-2">
     <div id="menu-output"></div>
   </div>
   </main>
@@ -223,15 +210,46 @@
   <a href="accessibility.html" style="color:#5f6675;text-decoration:none">הצהרת נגישות</a>
 </footer>
 
-<script src="data.js?v=20260813e"></script>
-<script src="app.js?v=20260813e"></script>
-<script src="ui.js?v=20260813e"></script>
+<script src="data.js?v=20260901c"></script>
+<script src="app.js?v=20260901c"></script>
+<script src="ui.js?v=20260901c"></script>
 <!-- שכבת חשבון/סנכרון (שלב 1) — גרסה נעולה + SRI (אין קוד צד-שלישי בלי אימות hash) -->
 <script defer
   src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0/dist/umd/supabase.min.js"
   integrity="sha384-DjOvX/sJLsmbMrw4wTvf6l3kiGBjdxyOO6X2MTFwOOXGkjN/mE08BoDzrpaaIjil"
   crossorigin="anonymous"></script>
-<script defer src="supabase-client.js?v=20260813e"></script>
+<script defer src="supabase-client.js?v=20260901c"></script>
+
+<!-- ══ בורר המאכלים — חלון אופציונלי, לא מסך ══
+     היה שני מסכים בזרימה ועכשיו הוא נפתח לפי בחירה: מהשורה במסך ההעדפות,
+     ומכפתור שקט בתפריט (כדי שאפשר יהיה לשנות גם אחרי שנבנה תפריט).
+     שתי הלשוניות כותבות לאותם שני Sets, ולכן ההחרגה מהתפריט ניתנת לביטול כאן. -->
+<div class="picker-overlay" id="food-picker" role="dialog" aria-modal="true" aria-labelledby="fp-title" hidden>
+  <div class="picker-box fp-box">
+    <div class="picker-title" id="fp-title">המאכלים שלי</div>
+
+    <div class="fp-tabs" role="tablist">
+      <button class="fp-tab active" id="fp-tab-like"  role="tab" aria-selected="true"  onclick="foodPickerTab('like')">רוצה בתפריט</button>
+      <button class="fp-tab"        id="fp-tab-avoid" role="tab" aria-selected="false" onclick="foodPickerTab('avoid')">לא רוצה בתפריט</button>
+    </div>
+
+    <div id="fp-pane-like">
+      <div class="picker-sub">מה שתסמנו ייכנס ראשון לתפריט. גם כמה מאכלים מספיקים.</div>
+      <div class="cat-tabs" id="like-tabs"></div>
+      <div class="food-grid" id="like-grid"></div>
+      <div class="count-bar"><span>סומנו: <strong id="like-count">0</strong> מאכלים</span></div>
+    </div>
+
+    <div id="fp-pane-avoid" hidden>
+      <div class="picker-sub">מה שתסמנו כאן לא יופיע בתפריט. אפשר לבטל בכל רגע.</div>
+      <div class="cat-tabs" id="avoid-tabs"></div>
+      <div class="food-grid" id="avoid-grid"></div>
+      <div class="count-bar"><span>מוחרגים: <strong id="avoid-count">0</strong> מאכלים</span></div>
+    </div>
+
+    <button class="btn-primary" style="width:100%;margin-top:14px" onclick="closeFoodPicker()">סיימתי</button>
+  </div>
+</div>
 
 <!-- חלון ויתור -->
 <div class="disclaimer-overlay" id="disclaimer-overlay" role="dialog" aria-modal="true" aria-labelledby="disc-title">

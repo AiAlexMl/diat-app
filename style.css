@@ -1209,7 +1209,7 @@ input[type="number"]:focus {
   }
   /* להסתיר את כל הכרום האינטראקטיבי + מה שלא שייך לתפריט עצמו */
   .step-bar, .disclaimer-overlay, .nav-btns, .treat-bar, .day-progress,
-  .eaten-btn, .alt-btn, .meal-edit-btn, .item-remove, .treat-remove,
+  .eaten-btn, .alt-btn, .meal-edit-btn, .item-remove, .item-never, .treat-remove,
   .coach-cta, .confetti-layer, .site-footer,
   .fav-heart, .menu-quiet-actions, .reset-link, .account-btn, .app-toast, .img-lightbox { display: none !important; }
   /* צמצום לדף אחד: בלי מאקרו פר-ארוחה, בלי תמונות, בלי טיפים (הסיכום בסוף נשאר) */
@@ -1292,3 +1292,56 @@ input[type="number"]:focus {
   border: 1.5px solid var(--border); border-radius: 10px; color: var(--text);
 }
 .otp-box:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+
+/* ══════════════════════════════════════════
+   בורר המאכלים כחלון (31/08/2026)
+   היה שני מסכים בזרימה; ירד למסלול משני כי ברירת המחדל היא
+   לתת למנוע לבנות, ובתצפית משתמשים לא הבינו מה מוצג להם.
+   ══════════════════════════════════════════ */
+
+/* ⚠️ חובה: ל-.picker-overlay יש display:flex, שגובר על ברירת המחדל של [hidden].
+   בלי זה החלון היה נשאר פתוח תמיד. */
+.picker-overlay[hidden] { display: none !important; }
+
+/* השורה האופציונלית במסך העדפות התזונה — הכניסה היחידה לפני בניית התפריט */
+.food-picker-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; margin: 18px 0; min-height: 44px;   /* יושבת מעל כפתור הבנייה */
+  padding: 14px 16px; text-align: right;
+  background: var(--bg-info); border: 1.5px dashed var(--border-info);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.food-picker-row:hover { background: #eef2ff; border-color: var(--accent); }
+.fpr-icon { font-size: 20px; flex: 0 0 auto; }
+.fpr-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fpr-text strong { font-size: 14px; font-weight: 700; color: var(--accent); }
+.fpr-text small  { font-size: 12px; color: var(--text-tert); font-weight: 400; }
+.fpr-chev { flex: 0 0 auto; font-size: 22px; color: var(--accent); line-height: 1; }
+
+/* הקופסה גבוהה יותר מבורר הפינוקים — היא מכילה רשת מאכלים שלמה */
+.fp-box { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+
+.fp-tabs { display: flex; gap: 8px; margin: 4px 0 14px; }
+.fp-tab {
+  flex: 1; min-height: 40px; padding: 9px 10px;
+  font-size: 13.5px; font-weight: 600; font-family: inherit;
+  border: 1.5px solid var(--border-sec); border-radius: 999px;
+  background: var(--bg); color: var(--text-sec); cursor: pointer;
+  transition: all .15s;
+}
+.fp-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* "אל תציע יותר" — לצד ה-✕ ובאותו מצב עריכה. ✕ מסיר מהיום, זה לתמיד,
+   ולכן צבע אחר: ענבר ולא אדום. */
+.item-never {
+  display: none;
+  border: none; cursor: pointer; line-height: 1;
+  width: 20px; height: 20px; border-radius: 999px;
+  margin-left: 6px; font-size: 10px;
+  background: #fef3c7; color: #b45309;
+  vertical-align: middle; position: relative;
+}
+.item-never:hover { background: #f59e0b; color: #fff; }
+.item-never::before { content: ''; position: absolute; inset: -12px; }
+.meal-card.editing .item-never { display: inline-flex; align-items: center; justify-content: center; }

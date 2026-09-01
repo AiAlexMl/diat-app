@@ -25,6 +25,10 @@ function saveState() {
       liked: [...S.liked], avoided: [...S.avoided],
     }));
   } catch (e) { /* localStorage חסום (מצב פרטי) — ממשיכים בלי שמירה */ }
+  // 🔑 מצב הבחירה לקורא מסך. יושב כאן ולא במטפלים כי **כל** מטפל שמשנה מצב
+  //    כבר קורא ל-saveState ⇒ נקודה אחת, בלי כפילות ובלי מקום לשכוח.
+  //    מוגן: saveState רץ גם לפני שהקבוצות חוברו (loadState בעליית הקובץ).
+  if (typeof syncGroupAria === 'function') { try { syncGroupAria(); } catch (e) {} }
 }
 
 function loadState() {
@@ -188,7 +192,7 @@ function restoreFavorite(payload) {
   // אותו hard-stop כמו בבנייה: אם השילוב מטרה×BMI מזיק, אנחנו מסרבים לייצר יום.
   // בלי זה השחזור היה דלת אחורית סביב שער בטיחות. (renderMenu → renderBuildBlock)
   const block = buildBlockText();
-  if (block) { renderBuildBlock(block); goTo(4); return false; }
+  if (block) { renderBuildBlock(block); goTo(2); return false; }
 
   const cal = favCalories(payload);
   const parts = [];
@@ -692,8 +696,7 @@ function goTo(n) {
     s.classList.toggle('active', i === n);
   });
   if (n === 1) updateTrainWarn();
-  if (n === 2) renderGrid('like');
-  if (n === 3) renderGrid('avoid');
+  // מסכי הבורר ירדו מהמסלול (31/08/2026) — הרינדור שלהם עבר ל-openFoodPicker.
   window.scrollTo(0, 0);
 }
 
@@ -824,11 +827,71 @@ updateMacroDisplay();
 DAY = loadDay();      // אם יש תפריט יום שמור — נכנסים ישר אליו ("מלווה יומי")
 if (DAY) { renderDay(); }
 
-// ── נגישות מקלדת: אלמנטים אינטראקטיביים שאינם <button> נייטיב (צ'יפים/כרטיסים/טאבים) ──
-// הסטטיים מסומנים כאן; הדינמיים מקבלים role/tabindex בתבנית. הפעלה ב-Enter/רווח דרך מאזין מואצל.
-document.querySelectorAll('.chip, .time-card').forEach(el => {
-  el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0');
-});
+// ── נגישות מקלדת: קבוצות בחירה (31/08/2026) ──────────────────────────────
+// היה: כל צ'יפ וכל כרטיס `role="button"` + `tabindex="0"` בנפרד. שתי בעיות.
+//   1. **16 עצירות טאב במסך ההעדפות.** מי שדילג על אפשרות נאלץ לעשות סיבוב שלם
+//      (אלכס נתקל בזה). התקן: **עצירת טאב אחת לקבוצה, וחצים בתוכה.**
+//   2. **מצב הבחירה לא נחשף בכלל.** מה שסימן בחירה הוא מחלקת CSS בשם `active`,
+//      וקורא מסך לא רואה CSS ⇒ הכריז "כשר, לחצן" בין אם מסומן ובין אם לא.
+// ⇒ פונקציה גנרית אחת לכל הקבוצות, ולא קוד ייעודי לכל אחת.
+const A11Y_GROUPS = [
+  ['.chip-group',   'group',      'checkbox'],   // רב-בחירה: סגנון תזונה, אלרגיות
+  ['.time-grid',    'radiogroup', 'radio'],      // בחירה יחידה: זמן אימון
+  ['.toggle-group', 'radiogroup', 'radio'],      // בחירה יחידה: מין, מטרה
+];
+const groupItems = g => [...g.children].filter(el => el.matches('.chip, .time-card, .toggle-btn'));
+
+function wireA11yGroup(g, groupRole, itemRole) {
+  g.setAttribute('role', groupRole);
+  // שם נגיש לקבוצה מתוך הכותרת שמעליה ("סגנון תזונה", "אלרגיות", "זמן אימון")
+  const title = g.parentElement && g.parentElement.querySelector('.sec-title');
+  if (title && !g.hasAttribute('aria-label')) g.setAttribute('aria-label', title.textContent.trim());
+
+  const items = groupItems(g);
+  items.forEach(el => el.setAttribute('role', itemRole));
+  rovingTabindex(g);
+
+  g.addEventListener('keydown', e => {
+    const KEYS = ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+    if (!KEYS.includes(e.key)) return;
+    const list = groupItems(g);
+    const cur  = list.indexOf(e.target);
+    if (cur < 0) return;
+    e.preventDefault();
+    // RTL: ימינה = אחורה, שמאלה = קדימה (כמו קבוצת radio נייטיב במסמך RTL)
+    let next;
+    if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = list.length - 1;
+    else {
+      const back = (e.key === 'ArrowRight' || e.key === 'ArrowUp');
+      next = (cur + (back ? -1 : 1) + list.length) % list.length;
+    }
+    list[next].focus();
+    // בקבוצת radio החץ גם בוחר, כמו בהתנהגות נייטיב. ב-checkbox רק מזיז פוקוס.
+    if (itemRole === 'radio') list[next].click();
+    else rovingTabindex(g);
+  });
+}
+
+// עצירת טאב אחת לקבוצה: הפריט הפעיל (או הראשון) מקבל 0, השאר -1
+function rovingTabindex(g) {
+  const items = groupItems(g);
+  const stop  = items.find(el => el.classList.contains('active')) || items[0];
+  items.forEach(el => el.setAttribute('tabindex', el === stop ? '0' : '-1'));
+}
+
+// 🔑 מסנכרן aria-checked ואת עצירת הטאב מתוך מחלקת `active`.
+//    נקרא מ-saveState(), שכל מטפל שמשנה מצב כבר קורא לו ⇒ אין צורך לגעת
+//    ב-toggleDiet/setTime/setGoal/setGender, ואין מקום לשכוח.
+function syncGroupAria() {
+  A11Y_GROUPS.forEach(([sel]) => document.querySelectorAll(sel).forEach(g => {
+    groupItems(g).forEach(el => el.setAttribute('aria-checked', el.classList.contains('active') ? 'true' : 'false'));
+    rovingTabindex(g);
+  }));
+}
+
+A11Y_GROUPS.forEach(([sel, gr, ir]) => document.querySelectorAll(sel).forEach(g => wireA11yGroup(g, gr, ir)));
+syncGroupAria();
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
   const el = e.target.closest && e.target.closest('.chip, .time-card, .cat-tab, .food-card, .picker-item');
@@ -934,6 +997,61 @@ function toggleNoTrain() {
 // ══════════════════════════════════════════
 //  מסכים 3 + 4 — בחירת מאכלים
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+//  בורר המאכלים — חלון אופציונלי (31/08/2026)
+// ══════════════════════════════════════════
+// היה שני מסכים מתוך חמישה, ובתצפית על משתמשים אנשים לא הבינו מה מוצג להם
+// ולא ידעו מתי סיימו (114 מאכלים, בלי נקודת עצירה). ⇒ **ברירת המחדל היא לא לגעת
+// ולתת למנוע לבנות**, והסימון הוא מסלול משני למי שרוצה מאכל מסוים בתפריט.
+// שתי הלשוניות כותבות לאותם Sets שהמסכים כתבו אליהם, ולכן שום לוגיקת מנוע לא השתנתה.
+function openFoodPicker(mode) {
+  const ov = document.getElementById('food-picker');
+  if (!ov) return;
+  ov.hidden = false;
+  document.body.style.overflow = 'hidden';
+  pushBack(closeFoodPicker);          // חזרה באנדרואיד סוגרת את החלון, לא את האפליקציה
+  foodPickerTab(mode || 'like');
+}
+
+function closeFoodPicker() {
+  const ov = document.getElementById('food-picker');
+  if (!ov || ov.hidden) return;
+  ov.hidden = true;
+  document.body.style.overflow = '';
+  popBack();
+  // התפריט כבר על המסך? הסימון החדש ישפיע רק על בנייה הבאה, אז אומרים את זה.
+  if (DAY && DAY.meals && DAY.meals.length) showToast('נשמר. ישפיע על התפריט הבא שתבנו.');
+}
+
+function foodPickerTab(mode) {
+  const isLike = mode !== 'avoid';
+  document.getElementById('fp-pane-like').hidden  = !isLike;
+  document.getElementById('fp-pane-avoid').hidden = isLike;
+  const tl = document.getElementById('fp-tab-like'), ta = document.getElementById('fp-tab-avoid');
+  tl.classList.toggle('active', isLike);  tl.setAttribute('aria-selected', isLike ? 'true' : 'false');
+  ta.classList.toggle('active', !isLike); ta.setAttribute('aria-selected', isLike ? 'false' : 'true');
+  renderGrid(isLike ? 'like' : 'avoid');
+}
+
+// "אל תציע לי את זה יותר" מתוך כרטיס הארוחה. כותב לאותה רשימה שהלשונית
+// "לא רוצה בתפריט" מציגה, ולכן תמיד יש דרך לבטל.
+function neverAgain(id) {
+  const f = FOOD_BY_ID[id];
+  if (!f) return;
+  S.avoided.add(id);
+  saveState();
+  const ac = document.getElementById('avoid-count');
+  if (ac) ac.textContent = S.avoided.size;
+  showToast(`${f.name} לא יוצע יותר`, null, {
+    label: 'ביטול',
+    onClick: () => {
+      S.avoided.delete(id);
+      saveState();
+      if (ac) ac.textContent = S.avoided.size;
+    }
+  });
+}
+
 function renderGrid(mode) {
   const cat = mode === 'like' ? likeCat : avoidCat;
   const cls = mode === 'like' ? 'active-like' : 'active-avoid';
@@ -950,7 +1068,7 @@ function renderGrid(mode) {
     const on = mode === 'like' ? S.liked.has(f.id) : S.avoided.has(f.id);
     return `<div class="food-card${on ? (mode === 'like' ? ' liked' : ' avoided') : ''}" role="button" tabindex="0"
                  onclick="toggleFood('${mode}',${f.id})" id="${mode}-${f.id}">
-      <div class="fc-icon">${mode === 'like' ? (on ? '❤️' : '🤍') : (on ? '🚫' : '✓')}</div>
+      <div class="fc-icon">${mode === 'like' ? (on ? '❤️' : '🤍') : (on ? '🚫' : '○')}</div>
       <div class="fc-name">${esc(f.name)}</div>
       ${f.prep ? `<div class="fc-prep">${esc(f.prep)}</div>` : ''}
     </div>`;
@@ -1040,7 +1158,7 @@ function renderBuildBlock(msg) {
     <div class="nav-btns" style="margin-top:16px">
       <button class="btn-secondary" onclick="goTo(0)">← חזרה לפרטים</button>
     </div>`;
-  goTo(4);
+  goTo(2);
 }
 
 // בונה את ה-HTML של יום — משותף למסך התפריט החי ולתצוגת קריאה-בלבד (היסטוריה/מועדפים).
@@ -1183,8 +1301,13 @@ function dayHtml(day, opts) {
         const thumb = imgSrc
           ? `<span class="food-thumb"><img src="${esc(imgSrc)}" alt="${esc(it.f.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></span>`
           : '';
+        // "אל תציע יותר" — לצד ה-✕, ובאותו מצב עריכה. ✕ מסיר מהיום, זה מסיר לתמיד.
+        // רק לפריטים מהמאגר (פריט ידני הוא id שלילי ואין לו מה להחריג).
+        const nv = (!ro && it.f.id > 0)
+          ? `<button class="item-never" onclick="neverAgain(${it.f.id})" title="אל תציע לי את זה יותר" aria-label="אל תציע לי את ${esc(it.f.name)} יותר">🚫</button>`
+          : '';
         html += `<div class="food-row">
-          <span class="food-row-name">${rm}${thumb}${esc(rowName)}</span>
+          <span class="food-row-name">${rm}${nv}${thumb}${esc(rowName)}</span>
           <div class="food-row-right">
             ${it.dispG ? `<span class="food-row-amount">${esc(it.dispG)}</span>` : ''}
             <span class="food-row-cal">${it.cal} קל׳</span>
@@ -1282,6 +1405,9 @@ function dayHtml(day, opts) {
       ? `<button class="pill-btn" disabled title="הסר את הפינוק כדי לשמור תפריט נקי">📄 שמירה כ-PDF</button>`
       : `<button class="pill-btn" onclick="window.print()">📄 שמירה כ-PDF</button>`}
     <button class="pill-btn" onclick="shareDay()">📤 שיתוף</button>
+    <!-- נקודת כניסה שנייה לבורר. בלעדיה, אחרי שנבנה תפריט הדרך היחידה לשנות
+         העדפות הייתה "התחל מחדש (איפוס)", כלומר לאבד הכל בשביל לשנות מאכל אחד. -->
+    <button class="pill-btn" onclick="openFoodPicker('like')">🍽️ המאכלים שלי</button>
   </div>${hasTreat
     ? `<div class="print-hint" style="text-align:center;margin-top:6px;font-size:12px;color:var(--text-tert)">📄 כדי לשמור תפריט נקי, הסר קודם את הפינוק 🙂</div>`
     : ''}
@@ -1306,7 +1432,7 @@ function renderDay() {
   document.getElementById('menu-output').innerHTML = dayHtml(DAY, {});
   updateDayProgress();
   updateFavHeart();
-  goTo(4);
+  goTo(2);
   if (onDay) window.scrollTo(0, y);
 }
 
@@ -1835,7 +1961,7 @@ function closeDisclaimer() {
 // מודדים את גובה התוכן כשהכרום מוסתר (אותה רשימת סלקטורים כמו ב-@media print ב-style.css)
 // ומחשבים zoom שמתאים לעמוד. beforeprint חל גם על window.print() מהכפתור.
 const PRINT_HIDE_SEL = '.step-bar,.disclaimer-overlay,.nav-btns,.treat-bar,.day-progress,' +
-  '.eaten-btn,.alt-btn,.meal-edit-btn,.item-remove,.treat-remove,.coach-cta,.site-footer,' +
+  '.eaten-btn,.alt-btn,.meal-edit-btn,.item-remove,.item-never,.treat-remove,.coach-cta,.site-footer,' +
   '.macro-row,.food-thumb,.tips-box,.treat-tip,.day-note';
 function fitMenuToOnePage() {
   const wrap = document.querySelector('.app-wrapper');
