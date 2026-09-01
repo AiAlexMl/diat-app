@@ -1004,11 +1004,19 @@ function toggleNoTrain() {
 // ולא ידעו מתי סיימו (114 מאכלים, בלי נקודת עצירה). ⇒ **ברירת המחדל היא לא לגעת
 // ולתת למנוע לבנות**, והסימון הוא מסלול משני למי שרוצה מאכל מסוים בתפריט.
 // שתי הלשוניות כותבות לאותם Sets שהמסכים כתבו אליהם, ולכן שום לוגיקת מנוע לא השתנתה.
+// טביעת אצבע של שתי הרשימות, למיון כדי ששינוי סדר לא ייחשב שינוי
+let fpSnapshot = null;
+const fpState = () => [...S.liked].sort().join(',') + '|' + [...S.avoided].sort().join(',');
+
 function openFoodPicker(mode) {
   const ov = document.getElementById('food-picker');
   if (!ov) return;
   ov.hidden = false;
   document.body.style.overflow = 'hidden';
+  // צילום מצב לפתיחה: הטוסט בסגירה יופיע **רק אם באמת השתנה משהו**.
+  // בלי זה הוא ירה גם על "פתחתי, הסתכלתי, סגרתי", כלומר הודעה על שמירה
+  // בלי שנשמר דבר. סגירה בלי שינוי צריכה להיות שקטה.
+  fpSnapshot = fpState();
   pushBack(closeFoodPicker);          // חזרה באנדרואיד סוגרת את החלון, לא את האפליקציה
   foodPickerTab(mode || 'like');
   // שלוש דרכי סגירה, כמו בכל מודאל: ✕ בפינה, לחיצה על הרקע, ו-Escape.
@@ -1028,8 +1036,12 @@ function closeFoodPicker() {
   ov.hidden = true;
   document.body.style.overflow = '';
   popBack();
-  // התפריט כבר על המסך? הסימון החדש ישפיע רק על בנייה הבאה, אז אומרים את זה.
-  if (DAY && DAY.meals && DAY.meals.length) showToast('נשמר. ישפיע על התפריט הבא שתבנו.');
+  // הודעה רק אם (א) באמת השתנה משהו, ו-(ב) יש כבר תפריט על המסך שהשינוי
+  // לא חל עליו. סגירה בלי שינוי היא שקטה, בכל דרך סגירה.
+  const changed = fpSnapshot !== null && fpState() !== fpSnapshot;
+  fpSnapshot = null;
+  if (changed && DAY && DAY.meals && DAY.meals.length)
+    showToast('נשמר. ישפיע על התפריט הבא שתבנו.');
 }
 
 function foodPickerTab(mode) {
