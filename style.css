@@ -952,21 +952,33 @@ input[type="number"]:focus {
   display: flex; justify-content: flex-end;
   margin-top: 10px;
 }
+/* 🔑 היפוך מצבים (02/09/2026). קודם: לבן לפני הלחיצה, ירוק מלא אחריה —
+   כלומר הכפתור צעק **אחרי** שביצעת ולחש כשעוד היית צריך להחליט.
+   ונמדד שהוא גם היה קטן פי 1.8 מ"אכלתי משהו אחר" שלידו, כי התווית ארוכה יותר,
+   כלומר מסלול החריגה גבר על המסלול העיקרי בטעות.
+   ⇒ לא מסומן = ירוק מלא (הזמנה לפעולה). מסומן = לבן ממוסגר.
+   המצב "בוצע" כבר נאמר שלוש פעמים: התווית ("✓ נאכלה"), עמעום הכרטיס ל-72%
+   והפס הירוק בצדו. הכפתור לא צריך להיות הסימן הרביעי. */
 .eaten-btn {
-  border: 1.5px solid #10b981;
-  background: #fff;
-  color: #047857;
+  /* ⚠️ #10b981 נראה נכון אבל נותן 2.54:1 מול לבן, מתחת ל-4.5 הנדרשים.
+     #047857 = 5.48:1. זה בדיוק הכשל ש-a11y-check.mjs נכתב בשבילו. */
+  border: 1.5px solid #047857;
+  background: #047857;
+  color: #fff;
   font-weight: 700; font-size: 13px;
   padding: 6px 16px; min-height: 44px;   /* לולאת הליבה היומית — חייבת יעד מגע מלא */
   border-radius: 999px;
   cursor: pointer;
   transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
 }
-.eaten-btn:hover { background: #ecfdf5; }
+.eaten-btn:hover { background: #065f46; border-color: #065f46; }   /* 7.57:1 */
 .eaten-btn.on {
-  background: #10b981;
-  color: #fff;
+  background: #fff;
+  color: #047857;
+  box-shadow: none;
 }
+.eaten-btn.on:hover { background: #ecfdf5; border-color: #10b981; }
 .meal-eaten {
   opacity: 0.72;
   border-right: 4px solid #10b981;

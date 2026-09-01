@@ -440,6 +440,13 @@ function celebrate() {
   setTimeout(() => layer.remove(), 3200);
 }
 
+// תווית כפתור הסימון — מקור אחד לשני מקומות (dayHtml ו-toggleEaten).
+// היו שני ליטרלים נפרדים, וכל שינוי בניסוח היה חייב להיזכר בשניהם.
+// ⚠️ ה-✓ מופיע **רק במצב "נאכלה"**: לפני הלחיצה זו הזמנה לפעולה, ואחריה אישור.
+//    קודם הוא הופיע בשניהם ולכן לא הבדיל בין כלום.
+//    כרטיס ההכוונה `.first-hint` מפנה למילה "אכלתי" ולא לסמל — תלוי בזה.
+const eatenLabel = on => on ? '✓ נאכלה' : 'אכלתי';
+
 function toggleEaten(i) {
   if (!DAY) return;
   const wasComplete = dayComplete();
@@ -453,7 +460,7 @@ function toggleEaten(i) {
     card.classList.toggle('meal-eaten', DAY.eaten[i]);
     const btn = card.querySelector('.eaten-btn');
     if (btn) {
-      btn.textContent = DAY.eaten[i] ? '✓ נאכלה' : 'אכלתי ✓';
+      btn.textContent = eatenLabel(DAY.eaten[i]);
       btn.classList.toggle('on', DAY.eaten[i]);
     }
     // ארוחה שנאכלה: יוצאים ממצב עריכה (ה-✏️ מוסתר ב-CSS, ה-✕ נעלמים)
@@ -1301,7 +1308,7 @@ function dayHtml(day, opts) {
     html += `<div class="first-hint" id="first-hint">
       <button class="fh-close" onclick="dismissFirstHint()" aria-label="סגירת ההסבר" title="סגירה">✕</button>
       <div class="fh-title">סמנו מה שאכלתם</div>
-      <div class="fh-text">אחרי כל ארוחה, לחצו ✓ בכרטיס שלה. פס ההתקדמות יתעדכן ותראו איפה אתם עומדים ביעד.</div>
+      <div class="fh-text">אחרי כל ארוחה, לחצו 'אכלתי' בכרטיס שלה. פס ההתקדמות יתעדכן ותראו איפה אתם עומדים ביעד.</div>
     </div>`;
   }
 
@@ -1384,8 +1391,8 @@ function dayHtml(day, opts) {
       html += `<div class="meal-actions">
       ${m.type !== 'treat' && trimGap(m) ? `<button class="alt-btn" onclick="balanceMeal(${mi})">⚖️ אזן את הארוחה</button>` : ''}
       ${m.type !== 'treat' ? `<button class="alt-btn add-item-btn" onclick="openAddItemPicker(${mi})">➕ הוסף פריט</button>` : ''}
-      ${m.type !== 'treat' ? `<button class="alt-btn" onclick="openAltPicker(${mi})">🔄 אכלתי משהו אחר</button>` : ''}
-      <button class="eaten-btn${day.eaten[mi] ? ' on' : ''}" onclick="toggleEaten(${mi})">${day.eaten[mi] ? '✓ נאכלה' : 'אכלתי ✓'}</button>
+      ${m.type !== 'treat' ? `<button class="alt-btn" onclick="openAltPicker(${mi})">🔄 משהו אחר</button>` : ''}
+      <button class="eaten-btn${day.eaten[mi] ? ' on' : ''}" onclick="toggleEaten(${mi})">${eatenLabel(day.eaten[mi])}</button>
     </div>`;
     }
     html += `</div>`;
