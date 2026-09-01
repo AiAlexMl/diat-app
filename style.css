@@ -949,7 +949,10 @@ input[type="number"]:focus {
 
 /* ── סימון "אכלתי" על ארוחה ── */
 .meal-actions {
-  display: flex; justify-content: flex-end;
+  /* ⚠️ flex-end ב-RTL הוא **שמאל**, כלומר הקצה שבו משפט עברי נגמר.
+     הכפתורים נדחפו לשם בזמן ששם הארוחה והפריטים מיושרים לימין, והעין
+     נאלצה לקפוץ. flex-start מצמיד אותם לימין, ישר מתחת לשם הארוחה. */
+  display: flex; justify-content: flex-start;
   margin-top: 10px;
 }
 /* 🔑 היפוך מצבים (02/09/2026). קודם: לבן לפני הלחיצה, ירוק מלא אחריה —
