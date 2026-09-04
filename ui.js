@@ -471,7 +471,32 @@ function toggleEaten(i) {
     }
   }
   updateDayProgress();
+  updateShareCard();
   if (!wasComplete && dayComplete()) celebrate();   // חגיגה רק במעבר ללא-שלם→שלם (לא בטעינת יום מושלם)
+}
+
+// הכרטיס נחשף כשהיום שלם ונסגר כשמבטלים סימון. נקרא גם מ-renderDay, כדי שיום
+// מושלם שנטען מ-localStorage יציג אותו בלי לחכות ללחיצה.
+function updateShareCard() {
+  const c = document.getElementById('share-card');
+  if (c) c.classList.toggle('on', dayComplete());
+}
+
+// הפניה לאדם אחד, להבדיל מ-shareDay() ששולח את התפריט עצמו.
+// ⚠️ בכוונה **בלי המספרים של המשתמש/ת**: היעד הקלורי והחלבון נגזרים מהמשקל ומהמטרה,
+//    ובכפתור "שלחו לחבר" זו חשיפה אישית שלא התבקשה. וגם לא רלוונטית — לנמען
+//    יש נתונים אחרים לגמרי, ולכן התפריט הזה הוא רעש אצלו.
+function shareReferral() {
+  const text = [
+    'זה עוזר לי לדעת מה לאכול, ואפילו משולש פיצה יכול להיכנס שם לפעמים.',
+    'מרכיב תפריט יום שלם לפי הנתונים שלך, בעברית ולאוכל ישראלי. 30 שניות בלי הרשמה:',
+    'https://shapeat.co.il',
+  ].join('\n');
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+  }
 }
 
 function updateDayProgress() {
@@ -1469,6 +1494,17 @@ function dayHtml(day, opts) {
   }
 
   if (!ro) {
+    // כרטיס ההפניה. מופיע **רק כשהיום הושלם** ולכן אינו מוסיף צפיפות לרוב הימים.
+    // למה כאן ולא בטוסט של celebrate(): טוסט חי 3.2 שניות ונמחק, וזה מספיק ל"ביטול"
+    // שהוא רפלקס אבל לא להחלטה לשלוח משהו לאדם אחר. בנוסף celebrate() יוצא מוקדם
+    // תחת prefers-reduced-motion, כלומר מי שביקש/ה פחות תנועה לא היה/הייתה רואה כלום.
+    // ⚠️ הניסוח נטול-מין בכוונה: S.gender הוא קלט לנוסחת ה-BMR ולא שדה זהות, ואסור
+    //    לגזור ממנו את הלשון של הודעה אישית.
+    html += `
+  <div class="share-card" id="share-card">
+    <div class="share-card-q">מכירים מישהו שמתלבט כל יום מה לאכול?</div>
+    <button class="share-card-btn" onclick="shareReferral()">שליחה בוואטסאפ</button>
+  </div>`;
     // פעולות שקטות: "היום הוא המוצר" — ייצור תפריט חוזר הוא פעולה משנית, לא ה-CTA של המסך.
     // הדפסה/PDF: חסומה כשיש פינוק (hasTreat מחושב למעלה) — תפריט מודפס עם פינוק יוצא בחוסר מאקרו
     // (הפינוק שמר תקציב), ולהציג פינוק במסמך "רשמי" לא מקצועי. מסירים את הפינוק ואז מדפיסים נקי.
@@ -1505,6 +1541,7 @@ function renderDay() {
   const y = window.scrollY;
   document.getElementById('menu-output').innerHTML = dayHtml(DAY, {});
   updateDayProgress();
+  updateShareCard();
   updateFavHeart();
   goTo(2);
   if (onDay) window.scrollTo(0, y);

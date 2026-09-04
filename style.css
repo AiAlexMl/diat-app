@@ -536,6 +536,26 @@ input[type="number"]:focus {
 /* ── כפתורי ניווט ── */
 .nav-btns { display: flex; gap: 10px; margin-top: 1.75rem; }
 /* פעולות שקטות במסך התפריט — "היום הוא המוצר", ייצור תפריט חוזר הוא משני */
+/* ── כרטיס ההפניה (מוצג רק כשהיום הושלם) ──
+   מוסתר כברירת מחדל ונחשף ע"י updateShareCard(). לא משתמשים ב-[hidden] בכוונה:
+   כלל display מפורש גובר עליו, וזו בדיוק התקלה שכבר נתקלנו בה עם הבוררים. */
+.share-card { display: none; }
+.share-card.on {
+  display: block; text-align: center;
+  margin-top: 18px; padding: 18px 20px;
+  background: var(--bg); border: 1.5px solid var(--border-sec);
+  border-radius: 16px; box-shadow: var(--shadow-sm);
+}
+.share-card-q { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+.share-card-btn {
+  min-height: 44px; padding: 11px 26px; border: none; border-radius: 999px;
+  background: var(--accent); color: #fff;
+  font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer;
+  transition: transform .15s, box-shadow .15s; box-shadow: var(--shadow-sm);
+}
+.share-card-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media print { .share-card { display: none !important; } }
+
 .menu-quiet-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
 .pill-btn {
   padding: 9px 18px; border-radius: 999px; min-height: 44px;
