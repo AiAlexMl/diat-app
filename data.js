@@ -27,8 +27,8 @@ const DB = {
     { id:20, name:"קוטג' 5%",            prep:"", p:11.0, c:3.5,  f:4.0,  fib:0,   cal:90,  tags:["dairy"], unitG:250, unitLabel:"קופסה (250g)",  halfLabel:"חצי קופסה (125g)" },
     { id:21, name:"קוטג' 3%",            prep:"", p:11.0, c:3.5,  f:2.5,  fib:0,   cal:75,  tags:["dairy"], unitG:250, unitLabel:"קופסה (250g)",  halfLabel:"חצי קופסה (125g)" },
     { id:22, name:"יוגורט PRO",          prep:"", p:10.0, c:5.0,  f:0.0,  fib:0,   cal:65,  tags:["dairy"], unitG:200, unitLabel:"גביע (200g)", plural:"גביעים (200g)" },
-    { id:23, name:"יוגורט יווני 0%",    prep:"", p:10.0, c:4.0,  f:0.2,  fib:0,   cal:57,  tags:["dairy"], unitG:170, unitLabel:"גביע (170g)", plural:"גביעים (170g)" },
-    { id:24, name:"יוגורט יווני 5%",    prep:"", p:9.0,  c:4.0,  f:5.0,  fib:0,   cal:97,  tags:["dairy"], unitG:170, unitLabel:"גביע (170g)", plural:"גביעים (170g)" },
+    { id:23, name:"יוגורט יווני 0%",    prep:"", p:8.4,  c:5.0,  f:0.0,  fib:0,   cal:54,  tags:["dairy"], unitG:150, unitLabel:"גביע (150g)", plural:"גביעים (150g)" },
+    { id:24, name:"יוגורט יווני 5%",    prep:"", p:9.0,  c:4.0,  f:5.0,  fib:0,   cal:97,  tags:["dairy"], unitG:150, unitLabel:"גביע (150g)", plural:"גביעים (150g)" },
     { id:25, name:"גבינה לבנה 5%",      prep:"", p:7.5,  c:3.5,  f:5.5,  fib:0,   cal:93,  tags:["dairy"], unitG:100 },
     { id:26, name:"גבינה צהובה",         prep:"", p:24.0, c:1.0,  f:23.0, fib:0,   cal:310, tags:["dairy"], unitG:15,  unitLabel:"פרוסה אחת", plural:"פרוסות", maxMeal:60 },   // עד 4 פרוסות לארוחה — נמדדו "9 פרוסות" לא ריאליות
     { id:27, name:"חלב 3%",              prep:"", p:3.2,  c:4.8,  f:3.2,  fib:0,   cal:61,  tags:["dairy"], unitG:250, unitLabel:"כוס (250ml)", drink:true },
