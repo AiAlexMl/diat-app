@@ -16,6 +16,18 @@ Pure client-side web app (HTML + CSS + vanilla JS), Hebrew RTL. No build step, n
 
 `ui.js` calls functions and reads variables defined in both `data.js` and `app.js`.
 
+🔑 **`app.js` has zero top-level execution** (verified: every statement is inside a function or a
+declaration; `ui.js`, by contrast, runs five — `loadState()`, `applyGender()`, `updateMacroDisplay()`
+and the day restore). **This is an invariant worth protecting, not an accident:** it is what lets
+another page load `data.js` + `app.js` and call `calcMacro()` / `bmiWarnText()` / `buildBlockText()`
+with no side effects and no refactor. ⚠️ **Adding a line that runs at the top level of `app.js`
+breaks that silently.**
+
+**Pages beyond `index.html`** (the app itself is only one of them):
+- `coaches.html` · `coach-demo.html` · `coach-dashboard.html` · `coach-setup.html` · `coach-terms.html` — the coach funnel; see CLAUDE.md.
+- `menu-1500/` · `menu-1800/` · `menu-2000/` — **SEO pages, pure static HTML with no scripts at all.** The menus in them are baked snapshots that do **not** track the engine. See CLAUDE.md → "SEO menu pages".
+- `privacy.html` · `terms.html` · `accessibility.html` · `c/<slug>/` redirect pages.
+
 **3 screens** toggled via `display:none` / `display:block` — no routing. Step-bar dots updated via `.done` / `.active` classes.
 
 ⚠️ **היו 5 עד 31/08/2026.** מסכי "מה אני אוהב" ו"מה אני לא אוכל" ירדו מהמסלול: הם דרשו לעבור על 114 מאכלים לפני שרואים משהו, ובתצפית על משתמשים אנשים **לא הבינו מה מוצג להם** ולא ידעו מתי סיימו. ⇒ **ברירת המחדל היא לא לגעת ולתת למנוע לבנות**, והבחירה עברה לחלון `#food-picker` שנפתח לפי בחירה בלבד (משורה במסך ההעדפות ומכפתור שקט בתפריט). `goTo` מזהה מסכים **לפי אינדקס**, ולכן מסך התפריט הוא כעת `goTo(2)`.
